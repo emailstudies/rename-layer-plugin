@@ -1,7 +1,8 @@
 {
   "name": "Rename Layer",
-  "description": "A simple Photopea plugin to rename the selected layer.",
+  "description": "Rename the selected layer in Photopea",
   "version": "1.0",
   "ui": "index.html",
-  "author": "MIR-SJ"
+  "icon": "icon.png",
+  "author": "emailstudies"
 }
