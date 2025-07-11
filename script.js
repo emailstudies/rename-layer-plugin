@@ -14,17 +14,10 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const script = `
-      if (app && app.activeDocument && app.activeDocument.activeLayer) {
-        app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};
-      } else {
-        alert("No layer selected.");
-      }
-    `;
+    // Avoid multiline strings and escape quotes properly
+    const safeScript = `if(app&&app.activeDocument&&app.activeDocument.activeLayer){app.activeDocument.activeLayer.name=${JSON.stringify(newName)};}else{alert("No layer selected.");}`;
 
-    console.log("Sending rename script to Photopea:", script);
-
-    // Send the script to the parent frame (Photopea)
-    window.parent.postMessage({ type: "ppScript", script: script }, "*");
+    console.log("Sending rename script to Photopea:", safeScript);
+    window.parent.postMessage({ type: "ppScript", script: safeScript }, "*");
   });
 });
