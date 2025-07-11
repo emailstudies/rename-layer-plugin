@@ -14,10 +14,12 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Avoid multiline strings and escape quotes properly
-    const safeScript = `if(app&&app.activeDocument&&app.activeDocument.activeLayer){app.activeDocument.activeLayer.name=${JSON.stringify(newName)};}else{alert("No layer selected.");}`;
+    // Clean and safe one-liner script for Photopea
+    const safeScript = `if(app&&app.activeDocument&&app.activeDocument.activeLayer){app.activeDocument.activeLayer.name=${JSON.stringify(newName)};}else{alert('No layer selected.');}`;
 
     console.log("Sending rename script to Photopea:", safeScript);
+
+    // Send the script to Photopea
     window.parent.postMessage({ type: "ppScript", script: safeScript }, "*");
   });
 });
