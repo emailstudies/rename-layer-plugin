@@ -12,5 +12,8 @@ document.getElementById("renameBtn").addEventListener("click", () => {
     }
   `;
 
+  // 👇 This line prints the script you're about to send to Photopea
+  console.log("Sending rename script to Photopea:", script);
+
   window.parent.postMessage({ type: "ppScript", script: script }, "*");
 });
