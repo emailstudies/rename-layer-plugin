@@ -14,19 +14,12 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Construct the script string and wrap it using Function to help avoid CSP eval block
-    const scriptCode = `if(app && app.activeDocument && app.activeDocument.activeLayer){
-      app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};
-    } else {
-      alert("No layer selected.");
-    }`;
+    // Clean and safe one-liner script for Photopea
+    const safeScript = `if(app&&app.activeDocument&&app.activeDocument.activeLayer){app.activeDocument.activeLayer.name=${JSON.stringify(newName)};}else{alert('No layer selected.');}`;
 
-    const fn = new Function(scriptCode);
-    const finalScript = fn.toString();
+    console.log("Sending rename script to Photopea:", safeScript);
 
-    console.log("Sending wrapped script to Photopea:", finalScript);
-
-    // Send it to Photopea
-    window.parent.postMessage("alert(1)", "*");
+    // Send the script to Photopea
+    window.parent.postMessage({ type: "ppScript", script: safeScript }, "*");
   });
 });
