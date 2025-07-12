@@ -9,13 +9,10 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // ✅ Send raw string as required by Photopea Live API
     const script = `app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};`;
 
-    console.log("Sending script to Photopea:", script);
-
-    window.parent.postMessage({
-      type: "ppScript",
-      script: script
-    }, "*");
+    console.log("Sending to Photopea:", script);
+    window.parent.postMessage(script, "*");  // Send only a string
   });
 });
