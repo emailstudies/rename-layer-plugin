@@ -1,11 +1,6 @@
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
-  if (!btn) {
-    console.error("Rename button not found");
-    return;
-  }
-
   btn.addEventListener("click", () => {
     const newName = document.getElementById("newName").value.trim();
 
@@ -14,12 +9,13 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Clean and safe one-liner script for Photopea
-    const safeScript = `if(app&&app.activeDocument&&app.activeDocument.activeLayer){app.activeDocument.activeLayer.name=${JSON.stringify(newName)};}else{alert('No layer selected.');}`;
+    const script = `app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};`;
 
-    console.log("Sending rename script to Photopea:", safeScript);
+    console.log("Sending script to Photopea:", script);
 
-    // Send the script to Photopea
-    window.parent.postMessage("alert(1)", "*");
+    window.parent.postMessage({
+      type: "ppScript",
+      script: script
+    }, "*");
   });
 });
