@@ -1,8 +1,8 @@
 window.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("addLayerBtn");
 
   if (!btn) {
-    console.error("Rename button not found");
+    console.error("Add Layer button not found");
     return;
   }
 
@@ -14,12 +14,12 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Safe and direct messaging using Photopea's API
     const jsxScript = `
-      if (app && app.activeDocument && app.activeDocument.activeLayer) {
-        app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};
+      if (app && app.activeDocument) {
+        var newLayer = app.activeDocument.artLayers.add();
+        newLayer.name = ${JSON.stringify(newName)};
       } else {
-        alert("No layer selected.");
+        alert("No document open.");
       }
     `;
 
