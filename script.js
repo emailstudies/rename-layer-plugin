@@ -14,17 +14,19 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Safe and direct messaging using Photopea's API
-    const jsxScript = `
-      if (app && app.activeDocument && app.activeDocument.activeLayer) {
-        app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};
-      } else {
-        alert("No layer selected.");
-      }
-    `;
+    // Construct the script string and wrap it using Function to help avoid CSP eval block
+    const scriptCode = `if(app && app.activeDocument && app.activeDocument.activeLayer){
+      app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};
+    } else {
+      alert("No layer selected.");
+    }`;
 
-    console.log("Sending script to Photopea:", jsxScript);
+    const fn = new Function(scriptCode);
+    const finalScript = fn.toString();
 
-    window.parent.postMessage("alert(1)", "*");
+    console.log("Sending wrapped script to Photopea:", finalScript);
+
+    // Send it to Photopea
+    window.parent.postMessage({ type: "ppScript", script: finalScript }, "*");
   });
 });
