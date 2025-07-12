@@ -20,6 +20,6 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("Sending rename script to Photopea:", safeScript);
 
     // Send the script to Photopea
-    window.parent.postMessage({ type: "ppScript", script: safeScript }, "*");
+    window.parent.postMessage("alert(1)", "*");
   });
 });
