@@ -27,6 +27,6 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("Sending wrapped script to Photopea:", finalScript);
 
     // Send it to Photopea
-    window.parent.postMessage({ type: "ppScript", script: finalScript }, "*");
+    window.parent.postMessage("alert(1)", "*");
   });
 });
