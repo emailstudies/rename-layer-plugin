@@ -13,6 +13,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const script = `app.activeDocument.activeLayer.name = ${JSON.stringify(newName)};`;
 
     console.log("Sending to Photopea:", script);
-    window.parent.postMessage(script, "*");  // Send only a string
+    window.parent.postMessage(script, "*");  // Send only a string - this was suggested by Photopea and works
   });
 });
