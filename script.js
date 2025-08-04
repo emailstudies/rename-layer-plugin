@@ -7,12 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btn.onclick = () => {
-    const photopeaScript = `
+    const script = `
       (function () {
         try {
           var original = app.activeDocument;
           if (!original || original.layers.length === 0) {
-            app.echoToOE("[flipbook] ❌ No valid layers");
+            app.echoToOE("❌ No valid layers found.");
             return;
           }
 
@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           if (!demoFolder || demoFolder.layers.length === 0) {
-            app.echoToOE("[flipbook] ❌ demo folder not found or empty.");
+            app.echoToOE("❌ demo folder not found or empty.");
             return;
           }
 
@@ -39,33 +39,29 @@ document.addEventListener("DOMContentLoaded", () => {
           for (var i = 0; i < demoLayers.length; i++) {
             var layer = demoLayers[i];
 
-            // Clear temp doc
             app.activeDocument = tempDoc;
             while (tempDoc.layers.length > 0) {
               tempDoc.layers[0].remove();
             }
 
-            // Duplicate current frame layer
             app.activeDocument = original;
             original.activeLayer = layer;
             layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-            // Export PNG
             app.activeDocument = tempDoc;
             tempDoc.saveToOE("png");
           }
 
-          // Cleanup
           app.activeDocument = tempDoc;
           tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          app.echoToOE("[flipbook] done");
+          app.echoToOE("done");
         } catch (e) {
-          app.echoToOE("[flipbook] ❌ ERROR: " + e.message);
+          app.echoToOE("❌ ERROR: " + e.message);
         }
       })();
     `;
 
-    parent.postMessage(photopeaScript, "*");
+    parent.postMessage(script, "*");
     console.log("📤 Sent script to Photopea");
   };
 
@@ -78,14 +74,19 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (typeof event.data === "string") {
       console.log("📩 Message from Photopea:", event.data);
 
-      if (event.data.trim() === "[flipbook] done") {
+      if (event.data === "done") {
         if (collectedFrames.length === 0) {
           console.warn("❌ No frames received.");
           return;
         }
 
-        // Build flipbook viewer
-        const flipbookHTML = `
+        const base64Frames = collectedFrames.map((ab) => {
+          return "data:image/png;base64," + btoa(
+            Array.from(new Uint8Array(ab)).map(c => String.fromCharCode(c)).join("")
+          );
+        });
+
+        const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -98,12 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
 <body>
   <canvas id="previewCanvas"></canvas>
   <script>
-    const frames = [];
-    ${collectedFrames.map((ab, i) => {
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-      return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
-    }).join("\\n")}
-
+    const frames = ${JSON.stringify(base64Frames)};
     const images = frames.map(src => {
       const img = new Image();
       img.src = src;
@@ -138,14 +134,15 @@ document.addEventListener("DOMContentLoaded", () => {
     preload();
   </script>
 </body>
-</html>`;
+</html>
+        `;
 
-        const blob = new Blob([flipbookHTML], { type: "text/html" });
+        const blob = new Blob([htmlContent], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
 
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("[flipbook] ❌")) {
+      } else if (event.data.startsWith("❌")) {
         console.error(event.data);
       }
     }
