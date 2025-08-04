@@ -1,56 +1,57 @@
 document.addEventListener("DOMContentLoaded", function () {
   const renameBtn = document.getElementById("renameBtn");
-
   const receivedFrames = [];
   let currentFrameIndex = 0;
-  let totalFrames = 0;
 
-  function sendScriptToPhotopea(code) {
-    parent.postMessage(code, "*");
+  function sendScriptToPhotopea(script) {
+    parent.postMessage(script, "*");
   }
 
   function runFrame(index) {
     const script = `
-      (function () {
-        function findDemoFolder(layers) {
-          for (var i = 0; i < layers.length; i++) {
-            var layer = layers[i];
-            if (layer.name === "demo" && layer.type === "layerSection") return layer;
-            if (layer.type === "layerSection" && layer.layers) {
-              var found = findDemoFolder(layer.layers);
-              if (found) return found;
-            }
-          }
-          return null;
-        }
+(function () {
+  function findDemoFolder(layers) {
+    for (var i = 0; i < layers.length; i++) {
+      var layer = layers[i];
+      if (layer.typename === "LayerSet" && layer.name === "demo") return layer;
+      if (layer.typename === "LayerSet" && layer.layers) {
+        var found = findDemoFolder(layer.layers);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
 
-        var doc = app.activeDocument;
-        var demoFolder = findDemoFolder(doc.layers);
-        if (!demoFolder) {
-          app.echoToOE("[test] ❌ Folder not found");
-          return;
-        }
+  var doc = app.activeDocument;
+  var demoFolder = findDemoFolder(doc.layers);
+  if (!demoFolder) {
+    app.echoToOE("[test] ❌ Folder 'demo' not found");
+    return;
+  }
 
-        var layers = demoFolder.layers;
-        if (!layers || layers.length === 0) {
-          app.echoToOE("[test] ❌ No layers in demo");
-          return;
-        }
+  var layers = demoFolder.layers;
+  if (!layers || layers.length === 0) {
+    app.echoToOE("[test] ❌ No layers in 'demo'");
+    return;
+  }
 
-        var total = layers.length;
-        var index = ${index};
+  var frameIndex = ${index};
+  if (frameIndex >= layers.length) {
+    app.echoToOE("[test] ✅ All frames exported");
+    return;
+  }
 
-        for (var i = 0; i < layers.length; i++) {
-          layers[i].visible = (i === index);
-        }
+  for (var i = 0; i < layers.length; i++) {
+    layers[i].visible = (i === frameIndex);
+  }
 
-        app.echoToOE("[test] Frame " + (index + 1) + " visible");
-        app.echoToOE("[test] ready to receive image");
+  app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
+  app.echoToOE("[test] ready to receive image");
 
-        app.saveToOE("png").then(function (buf) {
-          app.sendToOE(buf);
-        });
-      })();`;
+  app.saveToOE("png").then(function (buf) {
+    app.sendToOE(buf);
+  });
+})();`;
 
     sendScriptToPhotopea(script);
   }
@@ -69,9 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("📩", data);
 
         if (data === "[test] ready to receive image") {
-          parent.postMessage("// plugin: ready for image", "*");
-          // no need to send back __TEST_NEXT_FRAME
-          // wait for image and trigger next after receiving it
+          // wait for image, then next frame will be sent
         }
       }
     } else if (data instanceof ArrayBuffer) {
