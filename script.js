@@ -11,13 +11,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const script = `
 (function () {
   try {
-    var original = app.activeDocument;
-    if (!original || original.layers.length === 0) {
-      app.echoToOE("[test] ❌ No valid layers.");
+    var doc = app.activeDocument;
+    if (!doc || doc.layers.length === 0) {
+      app.echoToOE("[test] ❌ No valid document");
       return;
     }
 
-    // Recursively find the "demo" folder
+    // Find the "demo" folder recursively
     function findDemoFolder(layers) {
       for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
@@ -30,53 +30,52 @@ document.addEventListener("DOMContentLoaded", function () {
       return null;
     }
 
-    var demoFolder = findDemoFolder(original.layers);
+    var demoFolder = findDemoFolder(doc.layers);
     if (!demoFolder) {
-      app.echoToOE("[test] ❌ 'demo' folder not found.");
+      app.echoToOE("[test] ❌ Folder 'demo' not found");
       return;
     }
 
-    // Filter valid, visible, unlocked ArtLayers only
-    var validLayers = [];
-    for (var i = 0; i < demoFolder.layers.length; i++) {
-      var lyr = demoFolder.layers[i];
-      if (lyr.typename === "ArtLayer" && lyr.visible && !lyr.locked) {
-        validLayers.push(lyr);
+    var allLayers = demoFolder.layers;
+    var visibleLayers = [];
+
+    for (var i = 0; i < allLayers.length; i++) {
+      var lyr = allLayers[i];
+      if (lyr.typename === "ArtLayer" && !lyr.locked) {
+        visibleLayers.push(lyr);
       }
     }
 
-    if (validLayers.length === 0) {
-      app.echoToOE("[test] ❌ No valid visible layers in 'demo'");
+    if (visibleLayers.length === 0) {
+      app.echoToOE("[test] ❌ No exportable layers in 'demo'");
       return;
     }
 
     var frameIndex = ${index};
-    if (frameIndex >= validLayers.length) {
+    if (frameIndex >= visibleLayers.length) {
       app.echoToOE("[test] ✅ Done");
       return;
     }
 
-    var layer = validLayers[frameIndex];
+    var current = visibleLayers[frameIndex];
+
+    // Hide all other layers in demo
+    for (var i = 0; i < visibleLayers.length; i++) {
+      visibleLayers[i].visible = (i === frameIndex);
+    }
+
     app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
 
-    // Create new blank temp doc
-    var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+    app.runMenuItem("flatten");
 
-    app.activeDocument = original;
-    original.activeLayer = layer;
-    layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-    app.activeDocument = tempDoc;
-    tempDoc.flatten();
-
-    tempDoc.saveToOE("png").then(function (buf) {
-      if (buf) {
-        app.sendToOE(buf);
-        app.echoToOE("[test] ready for next frame");
-      } else {
+    app.saveToOE("png").then(function (buf) {
+      if (!buf) {
         app.echoToOE("[test] ❌ saveToOE returned null");
+        return;
       }
-      tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+      app.sendToOE(buf);
+      app.echoToOE("[test] ready for next frame");
+      app.undo(); // restore document
     });
 
   } catch (e) {
@@ -102,10 +101,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (data === "[test] ready for next frame") {
         currentFrameIndex++;
         runFrame(currentFrameIndex);
-      } else if (data.startsWith("[test] ❌")) {
-        alert(data);
       } else if (data === "[test] ✅ Done") {
         alert("✅ All frames exported: " + receivedFrames.length);
+      } else if (data.startsWith("[test] ❌")) {
+        alert(data);
       }
     } else if (data instanceof ArrayBuffer) {
       receivedFrames.push(data);
