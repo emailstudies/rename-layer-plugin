@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button not found");
+    console.error("❌ renameBtn not found");
     return;
   }
 
@@ -16,7 +16,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          // 🔍 Find "demo" folder
           var demoFolder = null;
           for (var i = 0; i < original.layers.length; i++) {
             var layer = original.layers[i];
@@ -31,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          // 🧪 Create temp doc
           var tempDoc = app.documents.add(
             original.width,
             original.height,
@@ -40,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
             NewDocumentMode.RGB
           );
 
-          // 🔁 Loop through demo layers (top-down)
           for (var i = demoFolder.layers.length - 1; i >= 0; i--) {
             var layer = demoFolder.layers[i];
             if (layer.kind !== undefined && !layer.locked) {
@@ -50,24 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          // 🖼 Export each frame
           app.activeDocument = tempDoc;
 
           for (var i = tempDoc.layers.length - 1; i >= 0; i--) {
             var layer = tempDoc.layers[i];
             tempDoc.activeLayer = layer;
-
-            // Hide all other layers
             for (var j = 0; j < tempDoc.layers.length; j++) {
               tempDoc.layers[j].visible = (j === i);
             }
-
             tempDoc.flatten();
             tempDoc.saveToOE("png");
             tempDoc.undo();
           }
 
-          // 🧹 Cleanup
           app.activeDocument = tempDoc;
           tempDoc.close(SaveOptions.DONOTSAVECHANGES);
           app.echoToOE("done");
@@ -86,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
+      console.log(`🖼️ Frame ${collectedFrames.length} received (${event.data.byteLength} bytes)`);
     } else if (typeof event.data === "string") {
       console.log("📩 Message from Photopea:", event.data);
 
@@ -95,8 +88,12 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // 🧪 Flipbook preview
-        const flipbookHTML = \`
+        const frameLines = collectedFrames.map((ab, i) => {
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+          return `frames[${i}] = "data:image/png;base64,${base64}";`;
+        }).join("\n");
+
+        const flipbookHTML = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -110,12 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <canvas id="previewCanvas"></canvas>
     <script>
       const frames = [];
-      ${collectedFrames
-        .map((ab, i) => {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
-        })
-        .join("\\n")}
+      ${frameLines}
 
       const images = frames.map(src => {
         const img = new Image();
@@ -151,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
       preload();
     </script>
   </body>
-</html>\`;
+</html>`;
 
         const blob = new Blob([flipbookHTML], { type: "text/html" });
         const url = URL.createObjectURL(blob);
