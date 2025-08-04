@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          // Find "demo" folder
+          // Find the "demo" LayerSet
           var demoFolder = null;
           for (var i = 0; i < original.layers.length; i++) {
             var layer = original.layers[i];
@@ -27,28 +27,27 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           if (!demoFolder || demoFolder.layers.length === 0) {
-            app.echoToOE("❌ demo folder not found or empty.");
+            app.echoToOE("❌ 'demo' folder not found or empty.");
             return;
           }
 
-          // Create temporary export doc
           var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
           var demoLayers = demoFolder.layers;
-
           for (var i = 0; i < demoLayers.length; i++) {
             var layer = demoLayers[i];
-
-            app.activeDocument = tempDoc;
-            while (tempDoc.layers.length > 0) {
-              tempDoc.layers[0].remove();
-            }
 
             app.activeDocument = original;
             original.activeLayer = layer;
             layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
             app.activeDocument = tempDoc;
+
+            // Remove all previous layers except the one we just added
+            while (tempDoc.layers.length > 1) {
+              tempDoc.layers[tempDoc.layers.length - 1].remove();
+            }
+
             tempDoc.saveToOE("png");
           }
 
@@ -68,94 +67,81 @@ document.addEventListener("DOMContentLoaded", () => {
   const collectedFrames = [];
 
   window.addEventListener("message", (event) => {
-    const data = event.data;
+    if (event.data instanceof ArrayBuffer) {
+      collectedFrames.push(event.data);
+      console.log("🖼️ Frame", collectedFrames.length, "received (", event.data.byteLength, "bytes)");
+    } else if (typeof event.data === "string") {
+      console.log("📩 Message from Photopea:", event.data);
 
-    if (data instanceof ArrayBuffer) {
-      collectedFrames.push(data);
-      console.log("🖼️ Frame", collectedFrames.length, "received (", data.byteLength, "bytes)");
-      return;
-    }
+      if (event.data === "done") {
+        if (collectedFrames.length === 0) {
+          console.error("❌ No frames received.");
+          return;
+        }
 
-    if (typeof data !== "string") return;
-    console.log("📩 Message from Photopea:", data);
-
-    if (data === "done") {
-      if (collectedFrames.length === 0) {
-        console.warn("⚠️ No frames received.");
-        return;
-      }
-
-      let frameJS = "";
-      for (let i = 0; i < collectedFrames.length; i++) {
-        const base64 = btoa(
-          Array.from(new Uint8Array(collectedFrames[i]))
-            .map(c => String.fromCharCode(c))
-            .join("")
-        );
-        frameJS += 'frames[' + i + '] = "data:image/png;base64,' + base64 + '";\n';
-      }
-
-      const flipbookHTML = `
+        const flipbookHTML = `
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Flipbook Preview</title>
-    <style>
-      html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
-      canvas { image-rendering: pixelated; }
-    </style>
-  </head>
-  <body>
-    <canvas id="previewCanvas"></canvas>
-    <script>
-      const frames = [];
-      ${frameJS}
+<head>
+  <title>Flipbook Preview</title>
+  <style>
+    html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
+    canvas { image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="previewCanvas"></canvas>
+  <script>
+    const frames = [];
+    ${collectedFrames.map((ab, i) => {
+      const base64 = btoa(Array.from(new Uint8Array(ab)).map(c => String.fromCharCode(c)).join(""));
+      return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
+    }).join("\\n")}
 
-      const images = frames.map(src => {
-        const img = new Image();
-        img.src = src;
-        return img;
+    const images = frames.map(src => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+    const fps = 12;
+    let index = 0;
+
+    const preload = () => {
+      let loaded = 0;
+      images.forEach(img => {
+        img.onload = () => {
+          loaded++;
+          if (loaded === images.length) startLoop();
+        };
       });
+    };
 
-      const canvas = document.getElementById("previewCanvas");
-      const ctx = canvas.getContext("2d");
-      const fps = 12;
-      let index = 0;
+    const startLoop = () => {
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
+      setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(images[index], 0, 0);
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
+    };
 
-      const preload = () => {
-        let loaded = 0;
-        images.forEach(img => {
-          img.onload = () => {
-            loaded++;
-            if (loaded === images.length) startLoop();
-          };
-        });
-      };
-
-      const startLoop = () => {
-        canvas.width = images[0].width;
-        canvas.height = images[0].height;
-        setInterval(() => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(images[index], 0, 0);
-          index = (index + 1) % images.length;
-        }, 1000 / fps);
-      };
-
-      preload();
-    </script>
-  </body>
+    preload();
+  </script>
+</body>
 </html>`;
 
-      const blob = new Blob([flipbookHTML], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+        const blob = new Blob([flipbookHTML], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
 
-      collectedFrames.length = 0;
-    }
-
-    if (data.startsWith("❌")) {
-      console.error("Photopea error:", data);
+        collectedFrames.length = 0;
+      } else if (event.data.startsWith("❌")) {
+        console.warn(event.data);
+      }
     }
   });
 });
