@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Recursively find "demo" folder
+    // Recursively find the "demo" folder
     function findDemoFolder(layers) {
       for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
@@ -36,33 +36,39 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    var layers = demoFolder.layers;
-    if (!layers || layers.length === 0) {
-      app.echoToOE("[test] ❌ 'demo' has no layers.");
+    // Filter valid, visible, unlocked ArtLayers only
+    var validLayers = [];
+    for (var i = 0; i < demoFolder.layers.length; i++) {
+      var lyr = demoFolder.layers[i];
+      if (lyr.typename === "ArtLayer" && lyr.visible && !lyr.locked) {
+        validLayers.push(lyr);
+      }
+    }
+
+    if (validLayers.length === 0) {
+      app.echoToOE("[test] ❌ No valid visible layers in 'demo'");
       return;
     }
 
     var frameIndex = ${index};
-    if (frameIndex >= layers.length) {
+    if (frameIndex >= validLayers.length) {
       app.echoToOE("[test] ✅ Done");
       return;
     }
 
-    var layer = layers[frameIndex];
-    if (!layer || layer.typename !== "ArtLayer") {
-      app.echoToOE("[test] ❌ Invalid layer at index " + frameIndex);
-      return;
-    }
-
+    var layer = validLayers[frameIndex];
     app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
 
+    // Create new blank temp doc
     var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+
     app.activeDocument = original;
     original.activeLayer = layer;
     layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
     app.activeDocument = tempDoc;
     tempDoc.flatten();
+
     tempDoc.saveToOE("png").then(function (buf) {
       if (buf) {
         app.sendToOE(buf);
