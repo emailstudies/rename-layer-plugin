@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("previewSelectedBtn");
 
   if (!btn) {
-    console.error("❌ renameBtn not found");
+    console.error("❌ Button not found");
     return;
   }
 
@@ -16,20 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          var demoFolder = null;
-          for (var i = 0; i < original.layers.length; i++) {
-            var layer = original.layers[i];
-            if (layer.typename === "LayerSet" && layer.name === "demo") {
-              demoFolder = layer;
-              break;
-            }
-          }
-
-          if (!demoFolder || demoFolder.layers.length === 0) {
-            app.echoToOE("❌ 'demo' folder not found or empty.");
-            return;
-          }
-
+          // Create temporary export doc
           var tempDoc = app.documents.add(
             original.width,
             original.height,
@@ -38,26 +25,23 @@ document.addEventListener("DOMContentLoaded", () => {
             NewDocumentMode.RGB
           );
 
-          for (var i = demoFolder.layers.length - 1; i >= 0; i--) {
-            var layer = demoFolder.layers[i];
-            if (layer.kind !== undefined && !layer.locked) {
-              app.activeDocument = original;
-              demoFolder.layers[i].visible = true;
-              demoFolder.layers[i].duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-            }
+          // ✅ Remove locked background layer if it exists
+          if (tempDoc.layers.length > 0 && tempDoc.layers[0].isBackgroundLayer) {
+            tempDoc.layers[0].remove();
           }
 
-          app.activeDocument = tempDoc;
+          for (var i = original.layers.length - 1; i >= 0; i--) {
+            var layer = original.layers[i];
+            if (layer.kind !== undefined && !layer.locked) {
+              app.activeDocument = original;
+              original.activeLayer = layer;
+              layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          for (var i = tempDoc.layers.length - 1; i >= 0; i--) {
-            var layer = tempDoc.layers[i];
-            tempDoc.activeLayer = layer;
-            for (var j = 0; j < tempDoc.layers.length; j++) {
-              tempDoc.layers[j].visible = (j === i);
+              app.activeDocument = tempDoc;
+              tempDoc.flatten();
+              tempDoc.saveToOE("png");
+              tempDoc.undo();
             }
-            tempDoc.flatten();
-            tempDoc.saveToOE("png");
-            tempDoc.undo();
           }
 
           app.activeDocument = tempDoc;
@@ -90,10 +74,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const frameLines = collectedFrames.map((ab, i) => {
           const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          return `frames[${i}] = "data:image/png;base64,${base64}";`;
-        }).join("\n");
+          return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
+        }).join("\\n");
 
-        const flipbookHTML = `
+        const flipbookHTML = \`
 <!DOCTYPE html>
 <html>
   <head>
@@ -143,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
       preload();
     </script>
   </body>
-</html>`;
+</html>\`;
 
         const blob = new Blob([flipbookHTML], { type: "text/html" });
         const url = URL.createObjectURL(blob);
