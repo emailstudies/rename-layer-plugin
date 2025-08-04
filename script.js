@@ -1,65 +1,66 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("previewSelectedBtn");
 
   if (!btn) {
-    console.error("❌ renameBtn not found");
+    console.error("❌ Button not found");
     return;
   }
 
   btn.onclick = () => {
-    const script = [
-      "(function () {",
-      "  try {",
-      "    var original = app.activeDocument;",
-      "    if (!original || original.layers.length === 0) {",
-      '      app.echoToOE("❌ No valid layers found."); return;',
-      "    }",
+    const script = `
+      (function () {
+        try {
+          var original = app.activeDocument;
+          if (!original || original.layers.length === 0) {
+            app.echoToOE("❌ No valid layers found.");
+            return;
+          }
 
-      "    var demoGroup = null;",
-      "    for (var i = 0; i < original.layers.length; i++) {",
-      "      var layer = original.layers[i];",
-      '      if (layer.typename === "LayerSet" && layer.name === "demo") {',
-      "        demoGroup = layer; break;",
-      "      }",
-      "    }",
+          // Find "demo" folder
+          var demoFolder = null;
+          for (var i = 0; i < original.layers.length; i++) {
+            var layer = original.layers[i];
+            if (layer.typename === "LayerSet" && layer.name === "demo") {
+              demoFolder = layer;
+              break;
+            }
+          }
 
-      "    if (!demoGroup || demoGroup.layers.length === 0) {",
-      '      app.echoToOE("❌ \'demo\' folder not found or empty."); return;',
-      "    }",
+          if (!demoFolder || demoFolder.layers.length === 0) {
+            app.echoToOE("❌ demo folder not found or empty.");
+            return;
+          }
 
-      "    var tempDoc = app.documents.add(original.width, original.height, original.resolution, '_temp_export', NewDocumentMode.RGB);",
+          // Create temporary export doc
+          var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-      "    app.activeDocument = original;",
-      "    for (var i = demoGroup.layers.length - 1; i >= 0; i--) {",
-      "      var frame = demoGroup.layers[i];",
-      "      original.activeLayer = frame;",
-      "      frame.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);",
-      "    }",
+          var demoLayers = demoFolder.layers;
 
-      "    app.activeDocument = tempDoc;",
-      "    for (var i = tempDoc.layers.length - 1; i >= 0; i--) {",
-      "      var lyr = tempDoc.layers[i];",
-      '      if (lyr.typename === "LayerSet" && lyr.name === "demo") {',
-      "        lyr.remove();",
-      "      }",
-      "    }",
+          for (var i = 0; i < demoLayers.length; i++) {
+            var layer = demoLayers[i];
 
-      "    for (var i = tempDoc.layers.length - 1; i >= 0; i--) {",
-      "      for (var j = tempDoc.layers.length - 1; j >= 0; j--) {",
-      "        tempDoc.layers[j].visible = (j === i);",
-      "      }",
-      "      tempDoc.flatten();",
-      "      tempDoc.saveToOE('png');",
-      "      tempDoc.undo();",
-      "    }",
+            app.activeDocument = tempDoc;
+            // Remove everything from temp before adding new frame
+            while (tempDoc.layers.length > 0) {
+              tempDoc.layers[0].remove();
+            }
 
-      "    tempDoc.close(SaveOptions.DONOTSAVECHANGES);",
-      '    app.echoToOE("done");',
-      "  } catch (e) {",
-      '    app.echoToOE("❌ ERROR: " + e.message);',
-      "  }",
-      "})();"
-    ].join("\n");
+            app.activeDocument = original;
+            original.activeLayer = layer;
+            layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+            app.activeDocument = tempDoc;
+            tempDoc.saveToOE("png");
+          }
+
+          app.activeDocument = tempDoc;
+          tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+          app.echoToOE("done");
+        } catch (e) {
+          app.echoToOE("❌ ERROR: " + e.message);
+        }
+      })();
+    `;
 
     parent.postMessage(script, "*");
     console.log("📤 Sent script to Photopea");
@@ -80,70 +81,64 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Create Flipbook HTML
-        let html = `<!DOCTYPE html>
+        const flipbookHTML = `
+<!DOCTYPE html>
 <html>
-<head>
-  <title>Flipbook Preview</title>
-  <style>
-    html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
-    canvas { image-rendering: pixelated; }
-  </style>
-</head>
-<body>
-  <canvas id="previewCanvas"></canvas>
-  <script>
-    const frames = [];
-`;
+  <head>
+    <title>Flipbook Preview</title>
+    <style>
+      html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas id="previewCanvas"></canvas>
+    <script>
+      const frames = [];
+      ${collectedFrames.map((ab, i) => {
+        const base64 = btoa(Array.from(new Uint8Array(ab)).map(c => String.fromCharCode(c)).join(""));
+        return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
+      }).join("\n")}
 
-        collectedFrames.forEach((ab, i) => {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          html += `frames[${i}] = "data:image/png;base64,${base64}";\n`;
-        });
-
-        html += `
-    const images = frames.map(src => {
-      const img = new Image();
-      img.src = src;
-      return img;
-    });
-
-    const canvas = document.getElementById("previewCanvas");
-    const ctx = canvas.getContext("2d");
-    const fps = 12;
-    let index = 0;
-
-    const preload = () => {
-      let loaded = 0;
-      images.forEach(img => {
-        img.onload = () => {
-          loaded++;
-          if (loaded === images.length) startLoop();
-        };
+      const images = frames.map(src => {
+        const img = new Image();
+        img.src = src;
+        return img;
       });
-    };
 
-    const startLoop = () => {
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-      setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(images[index], 0, 0);
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
-    };
+      const canvas = document.getElementById("previewCanvas");
+      const ctx = canvas.getContext("2d");
+      const fps = 12;
+      let index = 0;
 
-    preload();
-  </script>
-</body>
+      const preload = () => {
+        let loaded = 0;
+        images.forEach(img => {
+          img.onload = () => {
+            loaded++;
+            if (loaded === images.length) startLoop();
+          };
+        });
+      };
+
+      const startLoop = () => {
+        canvas.width = images[0].width;
+        canvas.height = images[0].height;
+        setInterval(() => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(images[index], 0, 0);
+          index = (index + 1) % images.length;
+        }, 1000 / fps);
+      };
+
+      preload();
+    </script>
+  </body>
 </html>`;
 
-        const blob = new Blob([html], { type: "text/html" });
+        const blob = new Blob([flipbookHTML], { type: "text/html" });
         const url = URL.createObjectURL(blob);
-        const win = window.open();
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
+        window.open(url, "_blank");
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
