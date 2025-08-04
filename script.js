@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("previewSelectedBtn");
+  const btn = document.getElementById("renameBtn");
 
   if (!btn) {
     console.error("❌ Button not found");
