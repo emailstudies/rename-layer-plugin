@@ -2,10 +2,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const renameBtn = document.getElementById("renameBtn");
   const receivedFrames = [];
   let currentFrameIndex = 0;
-  let totalFrames = 0;
 
-  function sendScriptToPhotopea(code) {
-    parent.postMessage(code, "*");
+  function sendScriptToPhotopea(script) {
+    parent.postMessage(script, "*");
   }
 
   function runFrame(index) {
@@ -49,15 +48,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
 
-  // Export this frame as PNG
-  app.saveToOE("png").then(function (buf) {
-    if (!buf) {
-      app.echoToOE("[test] ❌ saveToOE failed or empty buffer");
-      return;
-    }
-    app.sendToOE(buf);
-    app.echoToOE("[test] ready for next frame");
-  });
+  // Duplicate + flatten for safe export
+  try {
+    var tempDoc = app.activeDocument.duplicate();
+    tempDoc.flatten();
+
+    tempDoc.saveToOE("png").then(function (buf) {
+      if (!buf) {
+        app.echoToOE("[test] ❌ saveToOE failed or empty buffer");
+        return;
+      }
+      app.sendToOE(buf);
+      app.echoToOE("[test] ready for next frame");
+      tempDoc.close();
+    });
+  } catch (e) {
+    app.echoToOE("[test] ❌ Exception: " + e.message);
+  }
 })();`;
 
     sendScriptToPhotopea(script);
@@ -72,16 +79,16 @@ document.addEventListener("DOMContentLoaded", function () {
   window.addEventListener("message", function (event) {
     const data = event.data;
 
-    if (typeof data === "string" && data.startsWith("[test]")) {
-      console.log("📩", data);
+    if (typeof data === "string") {
+      if (data.startsWith("[test]")) {
+        console.log("📩", data);
 
-      if (data === "[test] ready for next frame") {
-        currentFrameIndex++;
-        runFrame(currentFrameIndex);
+        if (data === "[test] ready for next frame") {
+          currentFrameIndex++;
+          runFrame(currentFrameIndex);
+        }
       }
-    }
-
-    if (data instanceof ArrayBuffer) {
+    } else if (data instanceof ArrayBuffer) {
       receivedFrames.push(data);
       console.log("🖼️ Frame", receivedFrames.length, "received");
     }
