@@ -79,28 +79,21 @@ document.addEventListener("DOMContentLoaded", function () {
   startPreview();
 })();`;
 
-    const photopeaFrame = document.getElementById("photopea"); // replace if you use a different ID
-    photopeaFrame.contentWindow.postMessage(script, "*");
+    parent.postMessage(script, "*"); // 🔥 Key difference here
   };
-});
 
-
-const receivedFrames = [];
-
-window.addEventListener("message", (event) => {
-  const data = event.data;
-
-  if (typeof data === "string") {
-    if (data.startsWith("[test] Frame")) {
-      console.log("👁️ " + data);
-    } else if (data === "[test] ready to receive image") {
-      // Proceed to next frame
-      const photopeaFrame = document.getElementById("photopea");
-      photopeaFrame.contentWindow.postMessage("__TEST_NEXT_FRAME()", "*");
+  // Listener to continue sending next frame
+  window.addEventListener("message", function (event) {
+    const data = event.data;
+    if (typeof data === "string") {
+      if (data === "[test] ready to receive image") {
+        parent.postMessage("__TEST_NEXT_FRAME()", "*");
+      } else if (data.startsWith("[test] Frame")) {
+        console.log("👁️", data);
+      }
+    } else if (data instanceof ArrayBuffer) {
+      console.log("🖼️ Got image frame", data);
+      // Store in array if needed
     }
-  } else if (data instanceof ArrayBuffer) {
-    receivedFrames.push(data);
-    console.log("🖼️ Frame received: ", receivedFrames.length);
-    // You can use Blob and URL.createObjectURL here to preview/save
-  }
+  });
 });
