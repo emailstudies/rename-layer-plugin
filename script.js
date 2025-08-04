@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
             var layer = demoLayers[i];
 
             app.activeDocument = tempDoc;
-            // Remove everything from temp before adding new frame
             while (tempDoc.layers.length > 0) {
               tempDoc.layers[0].remove();
             }
@@ -69,19 +68,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const collectedFrames = [];
 
   window.addEventListener("message", (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      collectedFrames.push(event.data);
-      console.log("🖼️ Frame", collectedFrames.length, "received (", event.data.byteLength, "bytes)");
-    } else if (typeof event.data === "string") {
-      console.log("📩 Message from Photopea:", event.data);
+    const data = event.data;
 
-      if (event.data === "done") {
-        if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
-          return;
-        }
+    if (data instanceof ArrayBuffer) {
+      collectedFrames.push(data);
+      console.log("🖼️ Frame", collectedFrames.length, "received (", data.byteLength, "bytes)");
+      return;
+    }
 
-        const flipbookHTML = `
+    if (typeof data !== "string") return;
+    console.log("📩 Message from Photopea:", data);
+
+    if (data === "done") {
+      if (collectedFrames.length === 0) {
+        console.warn("⚠️ No frames received.");
+        return;
+      }
+
+      let frameJS = "";
+      for (let i = 0; i < collectedFrames.length; i++) {
+        const base64 = btoa(
+          Array.from(new Uint8Array(collectedFrames[i]))
+            .map(c => String.fromCharCode(c))
+            .join("")
+        );
+        frameJS += 'frames[' + i + '] = "data:image/png;base64,' + base64 + '";\n';
+      }
+
+      const flipbookHTML = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -95,10 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <canvas id="previewCanvas"></canvas>
     <script>
       const frames = [];
-      ${collectedFrames.map((ab, i) => {
-        const base64 = btoa(Array.from(new Uint8Array(ab)).map(c => String.fromCharCode(c)).join(""));
-        return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
-      }).join("\n")}
+      ${frameJS}
 
       const images = frames.map(src => {
         const img = new Image();
@@ -136,14 +147,15 @@ document.addEventListener("DOMContentLoaded", () => {
   </body>
 </html>`;
 
-        const blob = new Blob([flipbookHTML], { type: "text/html" });
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
+      const blob = new Blob([flipbookHTML], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
 
-        collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        alert(event.data);
-      }
+      collectedFrames.length = 0;
+    }
+
+    if (data.startsWith("❌")) {
+      console.error("Photopea error:", data);
     }
   });
 });
