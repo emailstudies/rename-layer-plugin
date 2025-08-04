@@ -41,26 +41,24 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  // Set only the current frame visible
+  // Show only current frame layer
   for (var i = 0; i < layers.length; i++) {
     layers[i].visible = (i === frameIndex);
   }
 
   app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
 
-  // Duplicate + flatten for safe export
   try {
-    var tempDoc = app.activeDocument.duplicate();
-    tempDoc.flatten();
+    app.runMenuItem("flatten");
 
-    tempDoc.saveToOE("png").then(function (buf) {
+    app.saveToOE("png").then(function (buf) {
       if (!buf) {
-        app.echoToOE("[test] ❌ saveToOE failed or empty buffer");
+        app.echoToOE("[test] ❌ saveToOE returned null");
         return;
       }
       app.sendToOE(buf);
       app.echoToOE("[test] ready for next frame");
-      tempDoc.close();
+      app.undo(); // Restore document state
     });
   } catch (e) {
     app.echoToOE("[test] ❌ Exception: " + e.message);
@@ -90,7 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } else if (data instanceof ArrayBuffer) {
       receivedFrames.push(data);
-      console.log("🖼️ Frame", receivedFrames.length, "received");
+      console.log("🖼️ Frame", receivedFrames.length, "received (", data.byteLength, "bytes)");
     }
   });
 });
