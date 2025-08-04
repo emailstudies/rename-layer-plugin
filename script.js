@@ -7,16 +7,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btn.onclick = () => {
-    const script = `
+    const photopeaScript = `
       (function () {
         try {
           var original = app.activeDocument;
           if (!original || original.layers.length === 0) {
-            app.echoToOE("❌ No valid layers found.");
+            app.echoToOE("[flipbook] ❌ No valid layers");
             return;
           }
 
-          // Find the "demo" LayerSet
+          // Find "demo" folder
           var demoFolder = null;
           for (var i = 0; i < original.layers.length; i++) {
             var layer = original.layers[i];
@@ -27,40 +27,45 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           if (!demoFolder || demoFolder.layers.length === 0) {
-            app.echoToOE("❌ 'demo' folder not found or empty.");
+            app.echoToOE("[flipbook] ❌ demo folder not found or empty.");
             return;
           }
 
+          // Create temporary export doc
           var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
           var demoLayers = demoFolder.layers;
+
           for (var i = 0; i < demoLayers.length; i++) {
             var layer = demoLayers[i];
 
+            // Clear temp doc
+            app.activeDocument = tempDoc;
+            while (tempDoc.layers.length > 0) {
+              tempDoc.layers[0].remove();
+            }
+
+            // Duplicate current frame layer
             app.activeDocument = original;
             original.activeLayer = layer;
             layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
+            // Export PNG
             app.activeDocument = tempDoc;
-
-            // Remove all previous layers except the one we just added
-            while (tempDoc.layers.length > 1) {
-              tempDoc.layers[tempDoc.layers.length - 1].remove();
-            }
-
             tempDoc.saveToOE("png");
           }
 
+          // Cleanup
           app.activeDocument = tempDoc;
           tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          app.echoToOE("done");
+          app.echoToOE("[flipbook] done");
         } catch (e) {
-          app.echoToOE("❌ ERROR: " + e.message);
+          app.echoToOE("[flipbook] ❌ ERROR: " + e.message);
         }
       })();
     `;
 
-    parent.postMessage(script, "*");
+    parent.postMessage(photopeaScript, "*");
     console.log("📤 Sent script to Photopea");
   };
 
@@ -73,12 +78,13 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (typeof event.data === "string") {
       console.log("📩 Message from Photopea:", event.data);
 
-      if (event.data === "done") {
+      if (event.data.trim() === "[flipbook] done") {
         if (collectedFrames.length === 0) {
-          console.error("❌ No frames received.");
+          console.warn("❌ No frames received.");
           return;
         }
 
+        // Build flipbook viewer
         const flipbookHTML = `
 <!DOCTYPE html>
 <html>
@@ -94,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <script>
     const frames = [];
     ${collectedFrames.map((ab, i) => {
-      const base64 = btoa(Array.from(new Uint8Array(ab)).map(c => String.fromCharCode(c)).join(""));
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
       return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
     }).join("\\n")}
 
@@ -139,8 +145,8 @@ document.addEventListener("DOMContentLoaded", () => {
         window.open(url, "_blank");
 
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.warn(event.data);
+      } else if (event.data.startsWith("[flipbook] ❌")) {
+        console.error(event.data);
       }
     }
   });
