@@ -2,9 +2,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const renameBtn = document.getElementById("renameBtn");
   const receivedFrames = [];
   let currentFrameIndex = 0;
+  let totalFrames = 0;
 
-  function sendScriptToPhotopea(script) {
-    parent.postMessage(script, "*");
+  function sendScriptToPhotopea(code) {
+    parent.postMessage(code, "*");
   }
 
   function runFrame(index) {
@@ -41,15 +42,21 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
+  // Set only the current frame visible
   for (var i = 0; i < layers.length; i++) {
     layers[i].visible = (i === frameIndex);
   }
 
   app.echoToOE("[test] Frame " + (frameIndex + 1) + " visible");
-  app.echoToOE("[test] ready to receive image");
 
+  // Export this frame as PNG
   app.saveToOE("png").then(function (buf) {
+    if (!buf) {
+      app.echoToOE("[test] ❌ saveToOE failed or empty buffer");
+      return;
+    }
     app.sendToOE(buf);
+    app.echoToOE("[test] ready for next frame");
   });
 })();`;
 
@@ -65,20 +72,18 @@ document.addEventListener("DOMContentLoaded", function () {
   window.addEventListener("message", function (event) {
     const data = event.data;
 
-    if (typeof data === "string") {
-      if (data.startsWith("[test]")) {
-        console.log("📩", data);
+    if (typeof data === "string" && data.startsWith("[test]")) {
+      console.log("📩", data);
 
-        if (data === "[test] ready to receive image") {
-          // wait for image, then next frame will be sent
-        }
+      if (data === "[test] ready for next frame") {
+        currentFrameIndex++;
+        runFrame(currentFrameIndex);
       }
-    } else if (data instanceof ArrayBuffer) {
-      receivedFrames.push(data);
-      console.log("🖼️ Received frame", receivedFrames.length);
+    }
 
-      currentFrameIndex++;
-      runFrame(currentFrameIndex);
+    if (data instanceof ArrayBuffer) {
+      receivedFrames.push(data);
+      console.log("🖼️ Frame", receivedFrames.length, "received");
     }
   });
 });
