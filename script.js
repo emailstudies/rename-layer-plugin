@@ -15,39 +15,59 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Create a reusable temp document once
+        // Find 'anim_preview' folder at root level
+        var animGroup = null;
+        for (var i = 0; i < original.layers.length; i++) {
+          var layer = original.layers[i];
+          if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
+            animGroup = layer;
+            break;
+          }
+        }
+
+        if (!animGroup) {
+          app.echoToOE("❌ Folder 'anim_preview' not found.");
+          return;
+        }
+
+        if (animGroup.layers.length === 0) {
+          app.echoToOE("❌ 'anim_preview' folder is empty.");
+          return;
+        }
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.echoToOE("📄 Temp doc created");
 
-        for (var i = original.layers.length - 1; i >= 0; i--) {
-          var layer = original.layers[i];
+        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
+          var frameLayer = animGroup.layers[i];
 
-          // Skip locked background
-          if (layer.name === "Background" && layer.locked) {
+          // Skip locked Background-style layers
+          if (frameLayer.name === "Background" && frameLayer.locked) {
             app.echoToOE("⏩ Skipped locked Background layer");
             continue;
           }
 
-          // Switch to tempDoc and clear all layers
+          // Clear tempDoc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
-          // Switch back and duplicate just this layer
+          // Duplicate just this frame into tempDoc
           app.activeDocument = original;
-          original.activeLayer = layer;
-          var duplicated = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          app.echoToOE("🪄 Duplicated layer: " + layer.name);
+          animGroup.visible = true;
+          frameLayer.visible = true;
+          original.activeLayer = frameLayer;
 
-          // Switch to temp and export
+          var dup = frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("🪄 Duplicated frame: " + frameLayer.name);
+
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("📸 Exporting frame: " + duplicated.name);
+          app.echoToOE("📸 Exporting frame: " + dup.name);
           tempDoc.saveToOE("png");
         }
 
-        // Close the temp doc after all exports
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
