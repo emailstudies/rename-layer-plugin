@@ -1,4 +1,3 @@
-// Flipbook Preview Script (Final Optimized: only 1 layer per export, tempDoc reused)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -18,37 +17,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Create a reusable temp document once
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.echoToOE("📄 Temp doc created");
 
         for (var i = original.layers.length - 1; i >= 0; i--) {
           var layer = original.layers[i];
 
-          // Skip locked Background
-          if (layer.name === "Background" && layer.locked) continue;
-
-          // Clear tempDoc by removing all its layers
-          app.activeDocument = tempDoc;
-          while (tempDoc.layers.length > 0) {
-            try {
-              tempDoc.layers[0].remove();
-            } catch (e) {
-              break;
-            }
+          // Skip locked background
+          if (layer.name === "Background" && layer.locked) {
+            app.echoToOE("⏩ Skipped locked Background layer");
+            continue;
           }
 
-          // Duplicate the current layer into tempDoc
+          // Switch to tempDoc and clear all layers
+          app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
+
+          // Switch back and duplicate just this layer
           app.activeDocument = original;
           original.activeLayer = layer;
-          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          var duplicated = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("🪄 Duplicated layer: " + layer.name);
 
-          // Export current frame
+          // Switch to temp and export
           app.activeDocument = tempDoc;
+          app.refresh();
+          app.echoToOE("📸 Exporting frame: " + duplicated.name);
           tempDoc.saveToOE("png");
         }
 
-        // Close tempDoc after all frames exported
+        // Close the temp doc after all exports
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.echoToOE("done");
+        app.echoToOE("✅ done");
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
@@ -67,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (typeof event.data === "string") {
       console.log("📩 Message from Photopea:", event.data);
 
-      if (event.data === "done") {
+      if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
           console.log("❌ No frames received.");
           return;
@@ -132,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const startLoop = () => {
         canvas.width = images[0].width;
         canvas.height = images[0].height;
-
         setInterval(() => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = "#ffffff";
