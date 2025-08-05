@@ -1,4 +1,4 @@
-// Flipbook Preview Script (Final Optimized: only 1 layer per export, tempDoc reused)
+// Flipbook Preview Script (Final: duplicate first, then remove others)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -16,32 +16,33 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Create a reusable temp document once
+        // Create reusable temp document once
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = original.layers.length - 1; i >= 0; i--) {
           var layer = original.layers[i];
 
-          // Skip locked Background
+          // Skip locked background
           if (layer.name === "Background" && layer.locked) continue;
-
-          // Clear tempDoc by removing all its layers
-          app.activeDocument = tempDoc;
-          while (tempDoc.layers.length > 0) {
-            try {
-              tempDoc.layers[0].remove();
-            } catch (e) {
-              break;
-            }
-          }
 
           // Duplicate the current layer into tempDoc
           app.activeDocument = original;
           original.activeLayer = layer;
-          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          var duplicated = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // Export current frame
+          // Now in tempDoc, delete all layers except the duplicated one
           app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            if (tempDoc.layers[j].id !== duplicated.id) {
+              try {
+                tempDoc.layers[j].remove();
+              } catch (e) {
+                // Might be locked — skip
+              }
+            }
+          }
+
+          // Export
           tempDoc.saveToOE("png");
         }
 
