@@ -2,59 +2,56 @@ window.addEventListener("message", (event) => {
   if (event.data !== "EXPORT_SELECTED_ANIM_FRAMES") return;
 
   const script = `
-(function () {
-  try {
-    var original = app.activeDocument;
-    var selected = original.activeLayer;
+    (function () {
+      try {
+        var original = app.activeDocument;
+        var sel = original.activeLayer;
 
-    if (!selected || selected.typename !== "LayerSet" || !selected.name.startsWith("anim_")) {
-      app.echoToOE("❌ Please select a folder named 'anim_*' at root.");
-      return;
-    }
+        if (!sel || sel.typename !== "LayerSet" || !sel.name.startsWith("anim_")) {
+          app.echoToOE("[plugin] ❌ Please select an 'anim_*' folder.");
+          return;
+        }
 
-    // Create a temporary export document with same dimensions
-    var temp = app.documents.add(
-      original.width,
-      original.height,
-      original.resolution,
-      "_temp_export",
-      NewDocumentMode.RGB,
-      DocumentFill.TRANSPARENT
-    );
+        var temp = app.documents.add(
+          original.width,
+          original.height,
+          original.resolution,
+          "_temp_export",
+          NewDocumentMode.RGB
+        );
 
-    // Loop through all layers inside the selected anim_* folder (top to bottom)
-    for (var i = selected.layers.length - 1; i >= 0; i--) {
-      var frame = selected.layers[i];
+        var framesExported = 0;
+        for (var i = sel.layers.length - 1; i >= 0; i--) {
+          var layer = sel.layers[i];
+          if (layer.kind !== undefined && !layer.locked) {
+            app.activeDocument = temp;
+            while (temp.layers.length > 0) temp.layers[0].remove();
 
-      if (!frame.visible || frame.locked || frame.kind === undefined) continue;
+            app.activeDocument = original;
+            original.activeLayer = layer;
+            layer.duplicate(temp, ElementPlacement.PLACEATBEGINNING);
 
-      // Switch to temp and clear previous frame
-      app.activeDocument = temp;
-      while (temp.layers.length > 0) temp.layers[0].remove();
+            app.activeDocument = temp;
+            var png = temp.saveToOE("png");
+            app.sendToOE(png);
+            framesExported++;
+          }
+        }
 
-      // Duplicate this frame into temp
-      app.activeDocument = original;
-      original.activeLayer = frame;
-      frame.duplicate(temp, ElementPlacement.PLACEATBEGINNING);
+        app.activeDocument = temp;
+        temp.close(SaveOptions.DONOTSAVECHANGES);
 
-      // Save PNG and send to plugin
-      app.activeDocument = temp;
-      var png = temp.saveToOE("png");
-      app.sendToOE(png);
-    }
+        if (framesExported === 0) {
+          app.echoToOE("[plugin] ❌ No visible layers exported.");
+        } else {
+          app.echoToOE("[plugin] ✅ PNGs exported");
+        }
 
-    // Close temp doc
-    app.activeDocument = temp;
-    temp.close(SaveOptions.DONOTSAVECHANGES);
-
-    // Confirm done
-    app.echoToOE("✅ PNGs exported");
-  } catch (e) {
-    app.echoToOE("❌ ERROR: " + e.message);
-  }
-})();
+      } catch (e) {
+        app.echoToOE("[plugin] ❌ ERROR: " + e.message);
+      }
+    })();
   `;
 
   parent.postMessage(script, "*");
-  console.log("📤 Export script sent to Photopea");
 });
