@@ -21,9 +21,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          if (!demoGroup) throw "❌ Folder 'anim_preview' not found.";
+          if (!demoGroup) {
+            alert("❌ Folder 'anim_preview' not found.");
+            return;
+          }
+
           if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ No layers inside 'anim_preview'.";
+            alert("❌ No layers inside 'anim_preview'.");
+            return;
           }
 
           // Step 2: Create new empty document
@@ -49,9 +54,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Step 4: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'anim_preview' duplicated into new document at root.");
+          alert("✅ Layers from 'anim_preview' duplicated into new document at root.");
         } catch (e) {
-          app.echoToOE("❌ Error: " + e.toString());
+          alert("❌ Error: " + e.toString());
         }
       })();
     `;
