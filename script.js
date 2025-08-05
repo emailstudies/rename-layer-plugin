@@ -13,17 +13,17 @@ document.addEventListener("DOMContentLoaded", () => {
           var original = app.activeDocument;
           var demoGroup = null;
 
-          // Step 1: Find the 'demo' folder at root
+          // Step 1: Find the 'anim_preview' folder at root
           for (var i = 0; i < original.layerSets.length; i++) {
-            if (original.layerSets[i].name === "demo") {
+            if (original.layerSets[i].name === "anim_preview") {
               demoGroup = original.layerSets[i];
               break;
             }
           }
 
-          if (!demoGroup) throw "❌ Folder 'demo' not found.";
+          if (!demoGroup) throw "❌ Folder 'anim_preview' not found.";
           if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ No layers inside 'demo'.";
+            throw "❌ No layers inside 'anim_preview'.";
           }
 
           // Step 2: Create new empty document
@@ -31,11 +31,11 @@ document.addEventListener("DOMContentLoaded", () => {
             original.width,
             original.height,
             original.resolution,
-            "demo_flat",
+            "flat_anim_preview",
             NewDocumentMode.RGB
           );
 
-          // Step 3: Copy each ArtLayer from demo group into new doc at root
+          // Step 3: Copy each ArtLayer from anim_preview group into new doc at root
           for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
             var layer = demoGroup.layers[i];
 
@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Step 4: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'demo' duplicated into new document at root.");
+          app.echoToOE("✅ Layers from 'anim_preview' duplicated into new document at root.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
