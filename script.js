@@ -1,6 +1,6 @@
 // Flipbook Preview Script (Final: skips Background, no alerts, console.log only)
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("previewSelectedBtn");
+  const btn = document.getElementById("renameBtn");
 
   if (!btn) {
     console.error("❌ Button not found");
