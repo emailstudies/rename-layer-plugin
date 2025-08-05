@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("copyDemoBtn");
+  const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button #copyDemoBtn not found");
+    console.error("❌ Button #renameBtn not found");
     return;
   }
 
