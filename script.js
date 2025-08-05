@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("copyDemoBtn");
 
   if (!btn) {
-    console.error("❌ Button #renameBtn not found");
+    console.error("❌ Button #copyDemoBtn not found");
     return;
   }
 
@@ -13,41 +13,29 @@ document.addEventListener("DOMContentLoaded", () => {
           var original = app.activeDocument;
           var demoGroup = null;
 
-          // Step 1: Find 'demo' folder
+          // Step 1: Find the 'demo' folder at root
           for (var i = 0; i < original.layerSets.length; i++) {
-            if (original.layerSets[i].name === "anim_preview") {
+            if (original.layerSets[i].name === "demo") {
               demoGroup = original.layerSets[i];
               break;
             }
           }
 
-          if (!demoGroup) throw "❌ Folder 'anim_preview' not found.";
+          if (!demoGroup) throw "❌ Folder 'demo' not found.";
           if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ No layers inside 'anim_preview'.";
+            throw "❌ No layers inside 'demo'.";
           }
 
-          // Step 2: Create new document
+          // Step 2: Create new empty document
           var newDoc = app.documents.add(
             original.width,
             original.height,
             original.resolution,
-            "flat_anim_preview",
+            "demo_flat",
             NewDocumentMode.RGB
           );
 
-          // Step 3: Add white background layer
-          app.activeDocument = newDoc;
-          var bg = newDoc.artLayers.add();
-          bg.name = "Background";
-          bg.move(newDoc, ElementPlacement.PLACEATEND);
-          app.foregroundColor.rgb.red = 255;
-          app.foregroundColor.rgb.green = 255;
-          app.foregroundColor.rgb.blue = 255;
-          newDoc.selection.selectAll();
-          newDoc.selection.fill(app.foregroundColor);
-          newDoc.selection.deselect();
-
-          // Step 4: Copy each ArtLayer from demo into new doc
+          // Step 3: Copy each ArtLayer from demo group into new doc at root
           for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
             var layer = demoGroup.layers[i];
 
@@ -59,9 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          // Step 5: Switch to new doc
+          // Step 4: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'demo' copied to new doc with white background.");
+          app.echoToOE("✅ Layers from 'demo' duplicated into new document at root.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
