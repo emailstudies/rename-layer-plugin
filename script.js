@@ -55,22 +55,25 @@ document.addEventListener("DOMContentLoaded", () => {
           // Step 4: Switch to new doc
           app.activeDocument = newDoc;
 
-          // Step 5: Find and fill the "Background" layer with white
+          // Step 5: Find and fill the "Background" layer with pure white (hardcoded)
           for (var i = 0; i < newDoc.artLayers.length; i++) {
             var lyr = newDoc.artLayers[i];
             if (lyr.name.toLowerCase() === "background" && lyr.kind === LayerKind.NORMAL) {
               newDoc.activeLayer = lyr;
-              app.foregroundColor.rgb.red = 255;
-              app.foregroundColor.rgb.green = 255;
-              app.foregroundColor.rgb.blue = 255;
+
+              var white = new SolidColor();
+              white.rgb.red = 255;
+              white.rgb.green = 255;
+              white.rgb.blue = 255;
+
               newDoc.selection.selectAll();
-              newDoc.selection.fill(app.foregroundColor);
+              newDoc.selection.fill(white);
               newDoc.selection.deselect();
               break;
             }
           }
 
-          alert("✅ Layers from 'anim_preview' duplicated into 'flat_anim_preview' and background filled.");
+          alert("✅ Layers from 'anim_preview' duplicated into 'flat_anim_preview' and background filled with white.");
         } catch (e) {
           alert("❌ Error: " + e.toString());
         }
