@@ -10,45 +10,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const script = `
       (function () {
         try {
-          var doc = app.activeDocument;
+          var original = app.activeDocument;
           var demoGroup = null;
 
-          // Find 'demo' LayerSet at root
-          for (var i = 0; i < doc.layerSets.length; i++) {
-            if (doc.layerSets[i].name === "demo") {
-              demoGroup = doc.layerSets[i];
+          // Step 1: Find the 'demo' folder at root
+          for (var i = 0; i < original.layerSets.length; i++) {
+            if (original.layerSets[i].name === "demo") {
+              demoGroup = original.layerSets[i];
               break;
             }
           }
 
           if (!demoGroup) throw "❌ Folder 'demo' not found.";
           if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ 'demo' has no layers.";
+            throw "❌ No layers inside 'demo'.";
           }
 
-          // Create a new empty document
+          // Step 2: Create new empty document
           var newDoc = app.documents.add(
-            doc.width,
-            doc.height,
-            doc.resolution,
+            original.width,
+            original.height,
+            original.resolution,
             "demo_flat",
             NewDocumentMode.RGB
           );
 
-          // Duplicate each child layer (but skip nested groups)
+          // Step 3: Copy each ArtLayer from demo group into new doc at root
           for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
             var layer = demoGroup.layers[i];
 
-            // Skip nested folders
-            if (layer.typename === "ArtLayer") {
-              if (!layer.locked) {
-                layer.duplicate(newDoc, ElementPlacement.PLACEATBEGINNING);
-              }
+            if (layer.typename === "ArtLayer" && !layer.locked) {
+              app.activeDocument = original;
+              original.activeLayer = layer;
+
+              layer.duplicate(newDoc, ElementPlacement.PLACEATBEGINNING);
             }
           }
 
+          // Step 4: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'demo' duplicated to new doc at root.");
+          app.echoToOE("✅ Layers from 'demo' duplicated into new document at root.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
