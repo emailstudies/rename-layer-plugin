@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let previewTab = null;
 
   if (!btn) {
-    console.error("❌ Button not found: renameBtn");
+    console.error("❌ Button not found: #webPreviewSelectedBtn");
     return;
   }
 
@@ -12,21 +12,25 @@ document.addEventListener("DOMContentLoaded", () => {
     collectedFrames.length = 0;
     previewTab = window.open("preview.html", "_blank");
 
+    if (!previewTab) {
+      alert("❌ Failed to open preview window. Please allow popups.");
+      return;
+    }
+
+    console.log("⏳ Opening preview tab...");
+
+    // Give time for preview.html to load before triggering Photopea export
     setTimeout(() => {
-      // ✅ Use unique plugin-specific message
-      window.parent.postMessage("[plugin] EXPORT_SELECTED_ANIM_FRAMES", "*");
+      parent.postMessage("EXPORT_SELECTED_ANIM_FRAMES", "*");
       console.log("▶️ Started frame export");
     }, 300);
   };
 
   window.addEventListener("message", (event) => {
-    if (!(event.data instanceof ArrayBuffer) && typeof event.data !== "string") return;
-
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
-      console.log("🧩 Frame received:", collectedFrames.length);
+      console.log(`🧩 Frame ${collectedFrames.length} received`);
     } else if (typeof event.data === "string") {
-      // Optional: log all messages from Photopea
       console.log("📩 Message from Photopea:", event.data);
 
       if (event.data.startsWith("✅")) {
@@ -35,9 +39,14 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Send to preview window after confirming Photopea export is done
         setTimeout(() => {
-          previewTab?.postMessage(collectedFrames, "*");
-          console.log("📨 Sent frames to preview tab");
+          if (previewTab) {
+            previewTab.postMessage(collectedFrames, "*");
+            console.log("📨 Sent all frames to preview tab");
+          } else {
+            alert("❌ Preview tab was closed before frames could be sent.");
+          }
         }, 500);
       } else if (event.data.startsWith("❌")) {
         alert(event.data);
