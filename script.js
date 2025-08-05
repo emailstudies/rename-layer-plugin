@@ -31,20 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          // Step 2: Try to find background color in original doc
-          var bgColor = { r: 255, g: 255, b: 255 }; // default white
-          for (var i = 0; i < original.artLayers.length; i++) {
-            var lyr = original.artLayers[i];
-            if (lyr.name.toLowerCase() === "background" && lyr.kind === LayerKind.NORMAL) {
-              app.activeDocument = original;
-              original.activeLayer = lyr;
-              // Set the sampled color as foreground (if solid)
-              // We assume it's white unless user explicitly changes fill later
-              break;
-            }
-          }
-
-          // Step 3: Create new document
+          // Step 2: Create new document
           var newDoc = app.documents.add(
             original.width,
             original.height,
@@ -53,22 +40,22 @@ document.addEventListener("DOMContentLoaded", () => {
             NewDocumentMode.RGB
           );
 
-          // Step 4: Fill new doc's background with sampled color (or white)
+          // Step 3: Add white background layer safely
           app.activeDocument = newDoc;
           var bg = newDoc.artLayers.add();
           bg.name = "Background";
           bg.move(newDoc, ElementPlacement.PLACEATEND);
 
-          // Try to reuse original's foreground color if changed
-          app.foregroundColor.rgb.red = bgColor.r;
-          app.foregroundColor.rgb.green = bgColor.g;
-          app.foregroundColor.rgb.blue = bgColor.b;
+          // Default to white
+          app.foregroundColor.rgb.red = 255;
+          app.foregroundColor.rgb.green = 255;
+          app.foregroundColor.rgb.blue = 255;
 
           newDoc.selection.selectAll();
           newDoc.selection.fill(app.foregroundColor);
           newDoc.selection.deselect();
 
-          // Step 5: Copy each ArtLayer from anim_preview group
+          // Step 4: Copy each ArtLayer from anim_preview into new doc
           for (var i = previewGroup.layers.length - 1; i >= 0; i--) {
             var layer = previewGroup.layers[i];
 
@@ -76,12 +63,14 @@ document.addEventListener("DOMContentLoaded", () => {
               app.activeDocument = original;
               original.activeLayer = layer;
 
+              // Duplicates without changing or removing from original
               layer.duplicate(newDoc, ElementPlacement.PLACEATBEGINNING);
             }
           }
 
+          // Step 5: Return to new doc
           app.activeDocument = newDoc;
-          alert("✅ Layers from 'anim_preview' copied with background to 'flat_anim_preview'.");
+          alert("✅ Copied layers from 'anim_preview' to 'flat_anim_preview' with white background.");
         } catch (e) {
           alert("❌ Error: " + e.toString());
         }
