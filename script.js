@@ -11,18 +11,18 @@ document.addEventListener("DOMContentLoaded", () => {
       (function () {
         try {
           var original = app.activeDocument;
-          var previewGroup = null;
+          var demoGroup = null;
 
-          // Step 1: Find 'anim_preview' folder
+          // Step 1: Find 'demo' folder
           for (var i = 0; i < original.layerSets.length; i++) {
             if (original.layerSets[i].name === "anim_preview") {
-              previewGroup = original.layerSets[i];
+              demoGroup = original.layerSets[i];
               break;
             }
           }
 
-          if (!previewGroup) throw "❌ Folder 'anim_preview' not found.";
-          if (!previewGroup.layers || previewGroup.layers.length === 0) {
+          if (!demoGroup) throw "❌ Folder 'anim_preview' not found.";
+          if (!demoGroup.layers || demoGroup.layers.length === 0) {
             throw "❌ No layers inside 'anim_preview'.";
           }
 
@@ -47,9 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
           newDoc.selection.fill(app.foregroundColor);
           newDoc.selection.deselect();
 
-          // Step 4: Copy each ArtLayer from anim_preview into new doc
-          for (var i = previewGroup.layers.length - 1; i >= 0; i--) {
-            var layer = previewGroup.layers[i];
+          // Step 4: Copy each ArtLayer from demo into new doc
+          for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
+            var layer = demoGroup.layers[i];
 
             if (layer.typename === "ArtLayer" && !layer.locked) {
               app.activeDocument = original;
@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Step 5: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'anim_preview' copied to 'flat_anim_preview' with white background.");
+          app.echoToOE("✅ Layers from 'demo' copied to new doc with white background.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
