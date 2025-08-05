@@ -13,22 +13,20 @@ document.addEventListener("DOMContentLoaded", () => {
     previewTab = window.open("preview.html", "_blank");
 
     setTimeout(() => {
-      parent.postMessage("EXPORT_SELECTED_ANIM_FRAMES", "*");
+      // ✅ Use unique message to prevent collisions
+      window.parent.postMessage("[plugin] EXPORT_SELECTED_ANIM_FRAMES", "*");
       console.log("▶️ Started frame export");
     }, 300);
   };
 
   window.addEventListener("message", (event) => {
-    // Filter out ad/analytics noise
     if (!(event.data instanceof ArrayBuffer) && typeof event.data !== "string") return;
 
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
       console.log("🧩 Frame received:", collectedFrames.length);
     } else if (typeof event.data === "string") {
-      // Only log relevant plugin-related strings
       if (!event.data.startsWith("✅") && !event.data.startsWith("❌")) return;
-
       console.log("📩 Message from Photopea:", event.data);
 
       if (event.data.startsWith("✅")) {
@@ -37,7 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Send frames to preview.html
         setTimeout(() => {
           previewTab?.postMessage(collectedFrames, "*");
           console.log("📨 Sent frames to preview tab");
