@@ -40,7 +40,7 @@ window.addEventListener("message", (event) => {
         temp.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ PNGs exported");
       } catch (e) {
-        app.echoToOE("❌ ERROR: \" + e.message);
+        app.echoToOE("❌ ERROR: " + e.message); // ✅ FIXED!
       }
     })();
   `;
