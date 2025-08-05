@@ -26,26 +26,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup) {
-          app.echoToOE("❌ Folder 'anim_preview' not found.");
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
         if (animGroup.layers.length === 0) {
-          app.echoToOE("❌ 'anim_preview' folder is empty.");
+          alert("❌ 'anim_preview' folder has no layers.");
           return;
         }
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-        app.echoToOE("📄 Temp doc created");
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
 
           // Skip locked Background-style layers
-          if (frameLayer.name === "Background" && frameLayer.locked) {
-            app.echoToOE("⏩ Skipped locked Background layer");
-            continue;
-          }
+          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
           // Clear tempDoc
           app.activeDocument = tempDoc;
@@ -59,12 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
 
-          var dup = frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          app.echoToOE("🪄 Duplicated frame: " + frameLayer.name);
+          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("📸 Exporting frame: " + dup.name);
           tempDoc.saveToOE("png");
         }
 
@@ -87,11 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      console.log("📩 Message from Photopea:", event.data);
-
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
-          console.log("❌ No frames received.");
+          alert("❌ No frames received.");
           return;
         }
 
@@ -177,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        console.log("⚠️ Photopea reported:", event.data);
+        console.log("⚠️ Photopea error:", event.data);
       }
     }
   });
