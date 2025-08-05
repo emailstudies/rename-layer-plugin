@@ -1,6 +1,6 @@
-// Flipbook Preview Script (Safe: skips Background, no kind check)
+// Flipbook Preview Script (Final: skips Background, no alerts, console.log only)
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("previewSelectedBtn");
 
   if (!btn) {
     console.error("❌ Button not found");
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (event.data === "done") {
         if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
+          console.log("❌ No frames received.");
           return;
         }
 
@@ -76,8 +76,18 @@ document.addEventListener("DOMContentLoaded", () => {
   <head>
     <title>Flipbook Preview</title>
     <style>
-      html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
-      canvas { image-rendering: pixelated; }
+      html, body {
+        margin: 0;
+        background: #111;
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      canvas {
+        image-rendering: pixelated;
+      }
     </style>
   </head>
   <body>
@@ -113,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setInterval(() => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // White background before drawing
+          // White background before each frame
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -136,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        alert(event.data);
+        console.log("⚠️ Photopea reported:", event.data);
       }
     }
   });
