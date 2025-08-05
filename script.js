@@ -1,4 +1,3 @@
-// Flipbook Preview Script (Updated: Clears temp doc per frame)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -8,43 +7,55 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btn.onclick = () => {
-    const script = `
-      (function () {
-        try {
-          var original = app.activeDocument;
-          if (!original || original.layers.length === 0) {
-            app.echoToOE("❌ No valid layers found.");
-            return;
-          }
-
-          // Create temporary export doc
-          var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-
-          for (var i = original.layers.length - 1; i >= 0; i--) {
-            var layer = original.layers[i];
-            if (layer.kind !== undefined && !layer.locked) {
-              app.activeDocument = tempDoc;
-              for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-                tempDoc.layers[j].remove();
-              }
-
-              app.activeDocument = original;
-              original.activeLayer = layer;
-              layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-              app.activeDocument = tempDoc;
-              tempDoc.saveToOE("png");
-            }
-          }
-
-          app.activeDocument = tempDoc;
-          tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          app.echoToOE("done");
-        } catch (e) {
-          app.echoToOE("❌ ERROR: " + e.message);
+    const script = `(function () {
+      try {
+        var original = app.activeDocument;
+        if (!original || original.layers.length === 0) {
+          app.echoToOE("❌ No valid layers found.");
+          return;
         }
-      })();
-    `;
+
+        // Create a reusable temp document once
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.echoToOE("📄 Temp doc created");
+
+        for (var i = original.layers.length - 1; i >= 0; i--) {
+          var layer = original.layers[i];
+
+          // Skip locked background
+          if (layer.name === "Background" && layer.locked) {
+            app.echoToOE("⏩ Skipped locked Background layer");
+            continue;
+          }
+
+          // Switch to tempDoc and clear all layers
+          app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
+
+          // Switch back and duplicate just this layer
+          app.activeDocument = original;
+          original.activeLayer = layer;
+          var duplicated = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("🪄 Duplicated layer: " + layer.name);
+
+          // Switch to temp and export
+          app.activeDocument = tempDoc;
+          app.refresh();
+          app.echoToOE("📸 Exporting frame: " + duplicated.name);
+          tempDoc.saveToOE("png");
+        }
+
+        // Close the temp doc after all exports
+        app.activeDocument = tempDoc;
+        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+        app.echoToOE("✅ done");
+
+      } catch (e) {
+        app.echoToOE("❌ ERROR: " + e.message);
+      }
+    })();`;
 
     parent.postMessage(script, "*");
     console.log("📤 Sent export script to Photopea");
@@ -58,31 +69,46 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (typeof event.data === "string") {
       console.log("📩 Message from Photopea:", event.data);
 
-      if (event.data === "done") {
+      if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
+          console.log("❌ No frames received.");
           return;
         }
 
-        const flipbookHTML = `<!DOCTYPE html>
+        const framesBase64 = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return btoa(binary);
+        });
+
+        const frameJS = framesBase64
+          .map((b64, i) => `frames[${i}] = "data:image/png;base64,${b64}";`)
+          .join("\n");
+
+        const flipbookHTML = `
+<!DOCTYPE html>
 <html>
   <head>
     <title>Flipbook Preview</title>
     <style>
-      html, body { margin: 0; background: #111; overflow: hidden; height: 100%; display: flex; justify-content: center; align-items: center; }
-      canvas { image-rendering: pixelated; }
+      html, body {
+        margin: 0;
+        background: #111;
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      canvas {
+        image-rendering: pixelated;
+      }
     </style>
   </head>
   <body>
     <canvas id="previewCanvas"></canvas>
     <script>
       const frames = [];
-      ${collectedFrames
-        .map((ab, i) => {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          return `frames[${i}] = "data:image/png;base64,${base64}";`;
-        })
-        .join("\n")}
+      ${frameJS}
 
       const images = frames.map(src => {
         const img = new Image();
@@ -105,31 +131,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       };
 
-     /* const startLoop = () => {
+      const startLoop = () => {
         canvas.width = images[0].width;
         canvas.height = images[0].height;
         setInterval(() => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(images[index], 0, 0);
           index = (index + 1) % images.length;
         }, 1000 / fps);
-      }; */
-
-      const startLoop = () => {
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-      setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 🔧 White background before drawing each frame
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.drawImage(images[index], 0, 0);
-        index = (index + 1) % images.length;
-  }, 1000 / fps);
-};
-
+      };
 
       preload();
     </script>
@@ -145,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        alert(event.data);
+        console.log("⚠️ Photopea reported:", event.data);
       }
     }
   });
