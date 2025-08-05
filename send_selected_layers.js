@@ -4,49 +4,45 @@ window.addEventListener("message", (event) => {
   const script = `
     (function () {
       try {
-        var original = app.activeDocument;
-        var sel = original.activeLayer;
+        var doc = app.activeDocument;
+        var selected = doc.activeLayer;
 
-        if (!sel || sel.typename !== "LayerSet" || !sel.name.startsWith("anim_")) {
-          app.echoToOE("[plugin] ❌ Please select an 'anim_*' folder.");
+        if (!selected || selected.typename !== "LayerSet" || !selected.name.startsWith("anim_")) {
+          app.echoToOE("[plugin] ❌ Please select a top-level 'anim_*' folder.");
           return;
         }
 
         var temp = app.documents.add(
-          original.width,
-          original.height,
-          original.resolution,
+          doc.width,
+          doc.height,
+          doc.resolution,
           "_temp_export",
           NewDocumentMode.RGB
         );
 
-        var framesExported = 0;
-        for (var i = sel.layers.length - 1; i >= 0; i--) {
-          var layer = sel.layers[i];
+        for (var i = selected.layers.length - 1; i >= 0; i--) {
+          var layer = selected.layers[i];
           if (layer.kind !== undefined && !layer.locked) {
+            // Clear previous layers
             app.activeDocument = temp;
             while (temp.layers.length > 0) temp.layers[0].remove();
 
-            app.activeDocument = original;
-            original.activeLayer = layer;
+            // Copy frame
+            app.activeDocument = doc;
+            doc.activeLayer = layer;
             layer.duplicate(temp, ElementPlacement.PLACEATBEGINNING);
 
+            // Send PNG
             app.activeDocument = temp;
             var png = temp.saveToOE("png");
             app.sendToOE(png);
-            framesExported++;
           }
         }
 
+        // Cleanup
         app.activeDocument = temp;
         temp.close(SaveOptions.DONOTSAVECHANGES);
-
-        if (framesExported === 0) {
-          app.echoToOE("[plugin] ❌ No visible layers exported.");
-        } else {
-          app.echoToOE("[plugin] ✅ PNGs exported");
-        }
-
+        app.echoToOE("[plugin] ✅ PNGs exported");
       } catch (e) {
         app.echoToOE("[plugin] ❌ ERROR: " + e.message);
       }
@@ -54,4 +50,5 @@ window.addEventListener("message", (event) => {
   `;
 
   parent.postMessage(script, "*");
+  console.log("📤 Export script sent to Photopea");
 });
