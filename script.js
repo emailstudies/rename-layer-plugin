@@ -1,4 +1,4 @@
-// Flipbook Preview Script (Final Fix: only 1 layer in temp doc, clean export)
+// Flipbook Preview Script (Final Optimized: only 1 layer per export, tempDoc reused)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -16,34 +16,40 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Create a reusable temp document once
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = original.layers.length - 1; i >= 0; i--) {
           var layer = original.layers[i];
-          if (!(layer.name === "Background" && layer.locked)) {
-            app.activeDocument = tempDoc;
 
-            // 💡 Safely remove all layers (avoid accumulation)
-            while (tempDoc.layers.length > 0) {
-              try {
-                tempDoc.layers[0].remove();
-              } catch (e) {
-                break; // skip locked or undeletable layers
-              }
+          // Skip locked Background
+          if (layer.name === "Background" && layer.locked) continue;
+
+          // Clear tempDoc by removing all its layers
+          app.activeDocument = tempDoc;
+          while (tempDoc.layers.length > 0) {
+            try {
+              tempDoc.layers[0].remove();
+            } catch (e) {
+              break;
             }
-
-            app.activeDocument = original;
-            original.activeLayer = layer;
-            layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-            app.activeDocument = tempDoc;
-            tempDoc.saveToOE("png");
           }
+
+          // Duplicate the current layer into tempDoc
+          app.activeDocument = original;
+          original.activeLayer = layer;
+          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+          // Export current frame
+          app.activeDocument = tempDoc;
+          tempDoc.saveToOE("png");
         }
 
+        // Close tempDoc after all frames exported
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("done");
+
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
@@ -128,14 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
         canvas.height = images[0].height;
 
         setInterval(() => {
-          // ✅ Clear previous content
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-          // ✅ Fill white background
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          // ✅ Draw current image
           ctx.drawImage(images[index], 0, 0);
           index = (index + 1) % images.length;
         }, 1000 / fps);
