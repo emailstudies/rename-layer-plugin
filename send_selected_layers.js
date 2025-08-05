@@ -1,8 +1,7 @@
 window.addEventListener("message", (event) => {
-  console.log("✅ send_selected_layer.js is loaded and listening");
-  console.log("📥 Message received:", event.data);
+  console.log("📥 Message received in plugin:", event.data);
 
-  if (event.data !== "EXPORT_SELECTED_ANIM_FRAMES") return;
+  if (typeof event.data !== "string" || event.data !== "[plugin] EXPORT_SELECTED_ANIM_FRAMES") return;
 
   const script = `
     (function () {
@@ -48,7 +47,6 @@ window.addEventListener("message", (event) => {
     })();
   `;
 
-  console.log("📤 Sending script:", script);
+  console.log("📤 Sending script to Photopea...");
   parent.postMessage(script, "*");
-  console.log("📤 Export script sent to Photopea");
 });
