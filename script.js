@@ -1,4 +1,4 @@
-// Flipbook Preview Script (Final: skips Background, no alerts, console.log only)
+// Flipbook Preview Script (Final: clears canvas correctly, no alert, skips Background)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -120,13 +120,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const startLoop = () => {
         canvas.width = images[0].width;
         canvas.height = images[0].height;
+
         setInterval(() => {
+          // ✅ Clear canvas completely
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // White background before each frame
+          // ✅ Paint solid white background
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // ✅ Draw current frame
           ctx.drawImage(images[index], 0, 0);
           index = (index + 1) % images.length;
         }, 1000 / fps);
