@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     previewTab = window.open("preview.html", "_blank");
 
     setTimeout(() => {
-      // ✅ Use unique message to prevent collisions
+      // ✅ Use unique plugin-specific message
       window.parent.postMessage("[plugin] EXPORT_SELECTED_ANIM_FRAMES", "*");
       console.log("▶️ Started frame export");
     }, 300);
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
       collectedFrames.push(event.data);
       console.log("🧩 Frame received:", collectedFrames.length);
     } else if (typeof event.data === "string") {
-      if (!event.data.startsWith("✅") && !event.data.startsWith("❌")) return;
+      // Optional: log all messages from Photopea
       console.log("📩 Message from Photopea:", event.data);
 
       if (event.data.startsWith("✅")) {
