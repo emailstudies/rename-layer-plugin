@@ -1,6 +1,6 @@
-// Flipbook Preview Script (Updated: Clears temp doc per frame)
+// Flipbook Preview Script (Updated: Skips locked Background layer, clears temp doc per frame)
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("previewSelectedBtn");
 
   if (!btn) {
     console.error("❌ Button not found");
@@ -22,8 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
           for (var i = original.layers.length - 1; i >= 0; i--) {
             var layer = original.layers[i];
-            if (layer.kind !== undefined && !layer.locked) {
+            // Skip locked Background layer
+            if (layer.kind !== undefined && !(layer.name === "Background" && layer.locked)) {
               app.activeDocument = tempDoc;
+              // Clear tempDoc
               for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
                 tempDoc.layers[j].remove();
               }
@@ -64,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const flipbookHTML = `<!DOCTYPE html>
+        const flipbookHTML = \`<!DOCTYPE html>
 <html>
   <head>
     <title>Flipbook Preview</title>
@@ -80,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ${collectedFrames
         .map((ab, i) => {
           const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          return `frames[${i}] = "data:image/png;base64,${base64}";`;
+          return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
         })
         .join("\n")}
 
@@ -105,36 +107,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       };
 
-     /* const startLoop = () => {
+      const startLoop = () => {
         canvas.width = images[0].width;
         canvas.height = images[0].height;
         setInterval(() => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // White background before drawing each frame
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
           ctx.drawImage(images[index], 0, 0);
           index = (index + 1) % images.length;
         }, 1000 / fps);
-      }; */
-
-      const startLoop = () => {
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-      setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 🔧 White background before drawing each frame
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.drawImage(images[index], 0, 0);
-        index = (index + 1) % images.length;
-  }, 1000 / fps);
-};
-
+      };
 
       preload();
     </script>
   </body>
-</html>`;
+</html>\`;
 
         const blob = new Blob([flipbookHTML], { type: "text/html" });
         const url = URL.createObjectURL(blob);
