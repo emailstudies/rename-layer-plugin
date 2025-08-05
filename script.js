@@ -1,4 +1,4 @@
-// Flipbook Preview Script (Updated: Skips locked Background layer, clears temp doc per frame)
+// Flipbook Preview Script (Safe: skips Background, no kind check)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -8,45 +8,40 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   btn.onclick = () => {
-    const script = `
-      (function () {
-        try {
-          var original = app.activeDocument;
-          if (!original || original.layers.length === 0) {
-            app.echoToOE("❌ No valid layers found.");
-            return;
-          }
-
-          // Create temporary export doc
-          var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-
-          for (var i = original.layers.length - 1; i >= 0; i--) {
-            var layer = original.layers[i];
-            // Skip locked Background layer
-            if (layer.kind !== undefined && !(layer.name === "Background" && layer.locked)) {
-              app.activeDocument = tempDoc;
-              // Clear tempDoc
-              for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-                tempDoc.layers[j].remove();
-              }
-
-              app.activeDocument = original;
-              original.activeLayer = layer;
-              layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-              app.activeDocument = tempDoc;
-              tempDoc.saveToOE("png");
-            }
-          }
-
-          app.activeDocument = tempDoc;
-          tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          app.echoToOE("done");
-        } catch (e) {
-          app.echoToOE("❌ ERROR: " + e.message);
+    const script = `(function () {
+      try {
+        var original = app.activeDocument;
+        if (!original || original.layers.length === 0) {
+          app.echoToOE("❌ No valid layers found.");
+          return;
         }
-      })();
-    `;
+
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+
+        for (var i = original.layers.length - 1; i >= 0; i--) {
+          var layer = original.layers[i];
+          if (!(layer.name === "Background" && layer.locked)) {
+            app.activeDocument = tempDoc;
+            for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+              tempDoc.layers[j].remove();
+            }
+
+            app.activeDocument = original;
+            original.activeLayer = layer;
+            layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+            app.activeDocument = tempDoc;
+            tempDoc.saveToOE("png");
+          }
+        }
+
+        app.activeDocument = tempDoc;
+        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+        app.echoToOE("done");
+      } catch (e) {
+        app.echoToOE("❌ ERROR: " + e.message);
+      }
+    })();`;
 
     parent.postMessage(script, "*");
     console.log("📤 Sent export script to Photopea");
@@ -66,7 +61,17 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const flipbookHTML = \`<!DOCTYPE html>
+        const framesBase64 = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return btoa(binary);
+        });
+
+        const frameJS = framesBase64
+          .map((b64, i) => `frames[${i}] = "data:image/png;base64,${b64}";`)
+          .join("\n");
+
+        const flipbookHTML = `
+<!DOCTYPE html>
 <html>
   <head>
     <title>Flipbook Preview</title>
@@ -79,12 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <canvas id="previewCanvas"></canvas>
     <script>
       const frames = [];
-      ${collectedFrames
-        .map((ab, i) => {
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-          return \`frames[\${i}] = "data:image/png;base64,\${base64}";\`;
-        })
-        .join("\n")}
+      ${frameJS}
 
       const images = frames.map(src => {
         const img = new Image();
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setInterval(() => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // White background before drawing each frame
+          // White background before drawing
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
       preload();
     </script>
   </body>
-</html>\`;
+</html>`;
 
         const blob = new Blob([flipbookHTML], { type: "text/html" });
         const url = URL.createObjectURL(blob);
