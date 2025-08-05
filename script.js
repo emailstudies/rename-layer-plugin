@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
+
   if (!btn) {
     console.error("❌ Button #copyDemoBtn not found");
     return;
@@ -12,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
           var doc = app.activeDocument;
           var demoGroup = null;
 
-          // Find the 'demo' folder at root level
+          // Find 'demo' LayerSet at root
           for (var i = 0; i < doc.layerSets.length; i++) {
             if (doc.layerSets[i].name === "demo") {
               demoGroup = doc.layerSets[i];
@@ -22,26 +23,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (!demoGroup) throw "❌ Folder 'demo' not found.";
           if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ No layers inside 'demo'.";
+            throw "❌ 'demo' has no layers.";
           }
 
-          // Create a new blank document
+          // Create a new empty document
           var newDoc = app.documents.add(
             doc.width,
             doc.height,
             doc.resolution,
-            "demo_layers_flat",
+            "demo_flat",
             NewDocumentMode.RGB
           );
 
-          // Duplicate each child layer of 'demo' directly to newDoc root
+          // Duplicate each child layer (but skip nested groups)
           for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
             var layer = demoGroup.layers[i];
-            layer.duplicate(newDoc, ElementPlacement.PLACEATBEGINNING);
+
+            // Skip nested folders
+            if (layer.typename === "ArtLayer") {
+              if (!layer.locked) {
+                layer.duplicate(newDoc, ElementPlacement.PLACEATBEGINNING);
+              }
+            }
           }
 
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'demo' copied to new document at root.");
+          app.echoToOE("✅ Layers from 'demo' duplicated to new doc at root.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
