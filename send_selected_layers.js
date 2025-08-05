@@ -1,4 +1,7 @@
 window.addEventListener("message", (event) => {
+  console.log("✅ send_selected_layer.js is loaded and listening");
+  console.log("📥 Message received:", event.data);
+
   if (event.data !== "EXPORT_SELECTED_ANIM_FRAMES") return;
 
   const script = `
@@ -32,7 +35,7 @@ window.addEventListener("message", (event) => {
 
             app.activeDocument = temp;
             var png = temp.saveToOE("png");
-            app.sendToOE(png); // ✅ THIS LINE makes it work
+            app.sendToOE(png);
           }
         }
 
@@ -40,11 +43,12 @@ window.addEventListener("message", (event) => {
         temp.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ PNGs exported");
       } catch (e) {
-        app.echoToOE("❌ ERROR: " + e.message); // ✅ FIXED!
+        app.echoToOE("❌ ERROR: " + e.message);
       }
     })();
   `;
 
+  console.log("📤 Sending script:", script);
   parent.postMessage(script, "*");
   console.log("📤 Export script sent to Photopea");
 });
