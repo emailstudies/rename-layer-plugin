@@ -1,4 +1,4 @@
-// Flipbook Preview Script (Final: duplicate first, then remove others)
+// Flipbook Preview Script (Crash-safe: duplicate first, delete others, skip Background)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -28,21 +28,19 @@ document.addEventListener("DOMContentLoaded", () => {
           // Duplicate the current layer into tempDoc
           app.activeDocument = original;
           original.activeLayer = layer;
-          var duplicated = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // Now in tempDoc, delete all layers except the duplicated one
+          // In tempDoc, delete all other layers except the one just added
           app.activeDocument = tempDoc;
+          var keep = tempDoc.activeLayer;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            if (tempDoc.layers[j].id !== duplicated.id) {
-              try {
-                tempDoc.layers[j].remove();
-              } catch (e) {
-                // Might be locked — skip
-              }
+            var l = tempDoc.layers[j];
+            if (l !== keep) {
+              try { l.remove(); } catch (e) {}
             }
           }
 
-          // Export
+          // Export frame
           tempDoc.saveToOE("png");
         }
 
