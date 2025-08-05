@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("renameBtm");
 
   if (!btn) {
     console.error("❌ Button #copyDemoBtn not found");
@@ -11,33 +11,45 @@ document.addEventListener("DOMContentLoaded", () => {
       (function () {
         try {
           var original = app.activeDocument;
-          var demoGroup = null;
+          var previewGroup = null;
 
-          // Step 1: Find the 'demo' folder at root
+          // Step 1: Find 'anim_preview' folder
           for (var i = 0; i < original.layerSets.length; i++) {
-            if (original.layerSets[i].name === "demo") {
-              demoGroup = original.layerSets[i];
+            if (original.layerSets[i].name === "anim_preview") {
+              previewGroup = original.layerSets[i];
               break;
             }
           }
 
-          if (!demoGroup) throw "❌ Folder 'demo' not found.";
-          if (!demoGroup.layers || demoGroup.layers.length === 0) {
-            throw "❌ No layers inside 'demo'.";
+          if (!previewGroup) throw "❌ Folder 'anim_preview' not found.";
+          if (!previewGroup.layers || previewGroup.layers.length === 0) {
+            throw "❌ No layers inside 'anim_preview'.";
           }
 
-          // Step 2: Create new empty document
+          // Step 2: Create new document
           var newDoc = app.documents.add(
             original.width,
             original.height,
             original.resolution,
-            "demo_flat",
+            "flat_anim_preview",
             NewDocumentMode.RGB
           );
 
-          // Step 3: Copy each ArtLayer from demo group into new doc at root
-          for (var i = demoGroup.layers.length - 1; i >= 0; i--) {
-            var layer = demoGroup.layers[i];
+          // Step 3: Add white background layer
+          app.activeDocument = newDoc;
+          var bg = newDoc.artLayers.add();
+          bg.name = "Background";
+          bg.move(newDoc, ElementPlacement.PLACEATEND);
+          app.foregroundColor.rgb.red = 255;
+          app.foregroundColor.rgb.green = 255;
+          app.foregroundColor.rgb.blue = 255;
+          newDoc.selection.selectAll();
+          newDoc.selection.fill(app.foregroundColor);
+          newDoc.selection.deselect();
+
+          // Step 4: Copy each ArtLayer from anim_preview into new doc
+          for (var i = previewGroup.layers.length - 1; i >= 0; i--) {
+            var layer = previewGroup.layers[i];
 
             if (layer.typename === "ArtLayer" && !layer.locked) {
               app.activeDocument = original;
@@ -47,9 +59,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          // Step 4: Switch to new doc
+          // Step 5: Switch to new doc
           app.activeDocument = newDoc;
-          app.echoToOE("✅ Layers from 'demo' duplicated into new document at root.");
+          app.echoToOE("✅ Layers from 'anim_preview' copied to 'flat_anim_preview' with white background.");
         } catch (e) {
           app.echoToOE("❌ Error: " + e.toString());
         }
