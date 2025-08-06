@@ -1,8 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-     
   if (!btn) {
-    console.error("❌ Button not found");
+    console.error("❌ Button #renameBtn not found.");
     return;
   }
 
@@ -28,58 +27,65 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("❌ Folder 'anim_preview' not found.");
           return;
         }
-
         if (animGroup.layers.length === 0) {
           alert("❌ 'anim_preview' folder is empty.");
           return;
         }
 
-        // Select bottom layer as safety step
-        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.activeDocument = original;
 
-        function logLayerVisibility(label) {
-          var output = "\\n🔍 Layer visibility at: " + label + "\\n";
-          for (var v = 0; v < animGroup.layers.length; v++) {
-            output += "[" + v + "] " + animGroup.layers[v].name + " → visible=" + animGroup.layers[v].visible + "\\n";
-          }
-          app.echoToOE(output);
+        // Hide all anim_preview layers
+        for (var i = 0; i < animGroup.layers.length; i++) {
+          animGroup.layers[i].visible = false;
         }
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        // Select first frame explicitly
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+        app.refresh();
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
-          if (frameLayer.name === "Background" && frameLayer.locked) continue;
-
-          // Clear tempDoc
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
-
-          // Toggle visibility
-          app.activeDocument = original;
-          for (var k = 0; k < animGroup.layers.length; k++) {
-            animGroup.layers[k].visible = false;
-          }
-          frameLayer.visible = true;
-          original.activeLayer = frameLayer;
 
           // Log visibility state
-          logLayerVisibility("Before duplicating " + frameLayer.name);
+          var log = "\\n🔍 Layer visibility at: Before duplicating " + frameLayer.name + "\\n";
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            log += "[" + j + "] " + animGroup.layers[j].name + " → visible=" + animGroup.layers[j].visible + "\\n";
+          }
+          app.echoToOE(log);
 
-          app.refresh();
+          // Toggle visibility
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = (j === i);
+          }
+
+          app.activeDocument = tempDoc;
+          while (tempDoc.layers.length > 0) {
+            try { tempDoc.layers[0].remove(); } catch (e) {}
+          }
+
+          app.activeDocument = original;
+          frameLayer.visible = true;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
+
+          // Fill white background
+          var bg = tempDoc.artLayers.add();
+          bg.name = "white_background";
+          bg.move(tempDoc.layers[tempDoc.layers.length - 1], ElementPlacement.PLACEAFTER);
+          app.activeDocument.activeLayer = bg;
+          app.foregroundColor.rgb.red = 255;
+          app.foregroundColor.rgb.green = 255;
+          app.foregroundColor.rgb.blue = 255;
+          app.executeAction(charIDToTypeID("Fl  "), undefined, DialogModes.NO);
+
           app.refresh();
           tempDoc.saveToOE("png");
         }
 
-        app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
-
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
@@ -90,22 +96,21 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const collectedFrames = [];
-  let imageDataURLs = [];
   let previewWindow = null;
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+      console.log("[flipbook] 📩 Message from Photopea:\n" + event.data);
 
-      if (event.data === "✅ done") {
+      if (event.data.includes("✅ done")) {
         if (collectedFrames.length === 0) {
           alert("❌ No frames received.");
           return;
         }
 
-        imageDataURLs = collectedFrames.map((ab) => {
+        const imageDataURLs = collectedFrames.map((ab) => {
           const binary = String.fromCharCode(...new Uint8Array(ab));
           return "data:image/png;base64," + btoa(binary);
         });
@@ -124,15 +129,15 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         };
 
-        if (previewWindow.document && previewWindow.document.readyState === "complete") {
+        if (previewWindow.document?.readyState === "complete") {
           sendImages();
         } else {
           previewWindow.onload = sendImages;
         }
 
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌") || event.data.includes("🔍")) {
-        console.log("[flipbook] ℹ️ Log or error:\n" + event.data);
+      } else if (event.data.startsWith("❌")) {
+        console.log("[flipbook] ⚠️ Error:", event.data);
       }
     }
   });
