@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side with extra loop for last frame)
+// flipbook_export.js (Plugin-side — fixed order, reliable export)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -31,13 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-        for (var i = 0; i <= animFolder.layers.length; i++) { // ➕ Extra iteration to ensure last frame completes
-          if (i === animFolder.layers.length) {
-            app.refresh();
-            continue;
-          }
-
+        for (var i = 0; i < animFolder.layers.length; i++) { // 🔁 Forward order
           var layer = animFolder.layers[i];
+
           if (layer.name === "Background" && layer.locked) continue;
 
           app.activeDocument = tempDoc;
