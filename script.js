@@ -1,3 +1,4 @@
+// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -28,10 +29,15 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // 🔁 Force selection of original before creating temp
+        app.activeDocument = original;
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-        // Iterate from bottom (UI top layer) to top (UI bottom layer)
-        for (var i = animFolder.layers.length; i >= 0; i--) {
+        // 🔁 Switch back again before starting loop
+        app.activeDocument = original;
+
+        for (var i = 0; i < animFolder.layers.length; i++) {
           var layer = animFolder.layers[i];
           if (layer.name === "Background" && layer.locked) continue;
 
@@ -86,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return btoa(binary);
         });
 
-        // ✅ framesBase64 already in UI order (top → bottom)
         const previewWindow = window.open("preview.html");
         previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
