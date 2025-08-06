@@ -34,6 +34,10 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // 🔁 Select the first frame manually to help initialize Photopea's render state
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+        app.refresh();
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
@@ -49,18 +53,16 @@ document.addEventListener("DOMContentLoaded", () => {
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
+          app.refresh(); // ⏱️ Trigger visual update before duplicate
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
-          app.refresh(); // ⚠️ Ensure the frame is fully rendered
+          app.refresh();
           tempDoc.saveToOE("png");
         }
 
-        // ✅ Clear any visual residual state before closing
         app.activeDocument = tempDoc;
-        app.refresh(); // 🧹 Flush final state to ensure last frame shows
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-
         app.echoToOE("✅ done");
 
       } catch (e) {
