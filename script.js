@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side — fixed order, reliable export)
+// flipbook_export.js (Plugin-side — fixed order, safe export)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -31,21 +31,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-        for (var i = 0; i < animFolder.layers.length; i++) { // 🔁 Forward order
+        for (var i = 0; i < animFolder.layers.length; i++) {
           var layer = animFolder.layers[i];
 
           if (layer.name === "Background" && layer.locked) continue;
-
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
 
           app.activeDocument = original;
           var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            if (tempDoc.layers[j] !== dup) {
+              try { tempDoc.layers[j].remove(); } catch (e) {}
+            }
+          }
+
           app.refresh();
+          app.echoToOE("📸 Exporting frame: " + layer.name);
           tempDoc.saveToOE("png");
         }
 
@@ -68,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
       if (event.data === "✅ done") {
+        console.log(`✅ All frames received: ${collectedFrames.length}`);
         if (collectedFrames.length === 0) {
           console.log("❌ No frames received.");
           return;
