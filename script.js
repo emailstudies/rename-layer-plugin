@@ -42,35 +42,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.echoToOE("[flipbook] ✅ Found 'anim_preview' with " + animGroup.layers.length + " frame(s)");
 
+        // Create new blank export doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
 
-        // Remove all default layers in new doc
+        // Remove all default layers in the new doc
         for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
-        for (var i+1 = animGroup.layers.length; i >= 0; i--) {
+        // Export each frame one-by-one
+        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
-          if (frameLayer.name === "Background" && frameLayer.locked) continue;
+          if (!frameLayer || frameLayer.typename !== "ArtLayer") continue;
 
-          // Clean tempDoc again before each frame
+          // 🧼 Clean temp doc layers
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
           app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
+
+          // 🔒 Show only the current frame layer
+          for (var k = 0; k < animGroup.layers.length; k++) {
+            animGroup.layers[k].visible = (k === i);
+          }
+
           original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          app.echoToOE("[flipbook] 📸 Exporting frame " + (animGroup.layers.length - i) + ": " + frameLayer.name);
-
           app.activeDocument = tempDoc;
           app.refresh();
+
+          app.echoToOE("[flipbook] ✅ Ready to export: " + frameLayer.name);
           tempDoc.saveToOE("png");
+          app.echoToOE("[flipbook] 🖼 Exported: " + frameLayer.name);
         }
 
         app.activeDocument = tempDoc;
@@ -111,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         collectedFrames.length = 0;
       } else if (msg.startsWith("❌")) {
-        console.error("[flipbook] ⚠️ Error:", msg);
+        console.error("[flipbook] ⚠️ Error from Photopea:", msg);
       } else {
         console.log("[flipbook] ℹ️", msg);
       }
