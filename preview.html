@@ -36,14 +36,11 @@
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
     const fps = 12;
-
-    let images = [];
-    let index = 0;
+    let images = [], index = 0;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images") {
-        const srcList = event.data.images;
-        images = srcList.map(src => {
+        images = event.data.images.map(src => {
           const img = new Image();
           img.src = src;
           return img;
@@ -57,19 +54,16 @@
       images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
-          }
+          console.log(`✅ Loaded image ${i + 1}/${images.length}`);
+          if (loaded === images.length) startLoop();
         };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+        img.onerror = () => console.warn(`❌ Failed to load image ${i + 1}`);
       });
     }
 
     function startLoop() {
       if (images.length === 0) return;
+
       canvas.width = images[0].width;
       canvas.height = images[0].height;
 
@@ -77,7 +71,7 @@
         const img = images[index];
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff"; // white background
+          ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           counter.textContent = `Frame: ${index + 1}`;
