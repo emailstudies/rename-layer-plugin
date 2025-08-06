@@ -34,20 +34,11 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // ✅ Add dummy layer
-        var dummy = animGroup.artLayers.add();
-        dummy.name = "_dummy_frame_fix";
-        app.echoToOE("[flipbook] ➕ Dummy frame added");
-
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
-
-          if (
-            frameLayer.name === "_dummy_frame_fix" ||
-            (frameLayer.name === "Background" && frameLayer.locked)
-          ) continue;
+          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
@@ -62,19 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           app.activeDocument = tempDoc;
           app.refresh();
-
-          app.echoToOE("[flipbook] 📸 Exported frame: " + frameLayer.name);
           tempDoc.saveToOE("png");
-        }
-
-        // 🧹 Remove dummy
-        app.activeDocument = original;
-        for (var i = 0; i < animGroup.layers.length; i++) {
-          if (animGroup.layers[i].name === "_dummy_frame_fix") {
-            animGroup.layers[i].remove();
-            app.echoToOE("[flipbook] 🗑 Dummy frame removed");
-            break;
-          }
         }
 
         app.activeDocument = tempDoc;
@@ -112,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
+
         previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
