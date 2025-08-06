@@ -1,4 +1,3 @@
-// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -12,96 +11,94 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
+          alert("❌ No valid layers found.");
           return;
         }
 
-        var animFolder = null;
+        var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
-          if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
-            animFolder = original.layers[i];
+          var layer = original.layers[i];
+          if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
+            animGroup = layer;
             break;
           }
         }
 
-        if (!animFolder) {
-          alert("❌ 'anim_preview' folder not found.");
+        if (!animGroup) {
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
-        // 🔁 Force selection of original before creating temp
-        app.activeDocument = original;
+        if (animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder is empty.");
+          return;
+        }
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-        // 🔁 Switch back again before starting loop
-        app.activeDocument = original;
+        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
+          var frameLayer = animGroup.layers[i];
+          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-        for (var i = 0; i < animFolder.layers.length; i++) {
-          var layer = animFolder.layers[i];
-          if (layer.name === "Background" && layer.locked) continue;
-
-          // Clear tempDoc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
-          // Duplicate with visibility fix
           app.activeDocument = original;
-          var wasVisible = layer.visible;
-          layer.visible = true;
-          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          layer.visible = wasVisible;
+          animGroup.visible = true;
+          frameLayer.visible = true;
+          original.activeLayer = frameLayer;
+          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // Export frame
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("📸 Exported frame: " + layer.name);
           tempDoc.saveToOE("png");
         }
 
-        // Cleanup
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.activeDocument = original;
         app.echoToOE("✅ done");
+
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent export script to Photopea");
+    console.log("[flipbook] 📤 Sent export script to Photopea");
   };
 
   const collectedFrames = [];
+  let imageDataURLs = [];
+  let previewWindow = null;
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
+      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
-          console.log("❌ No frames received.");
+          alert("❌ No frames received.");
           return;
         }
 
-        const framesBase64 = collectedFrames.map((ab) => {
+        imageDataURLs = collectedFrames.map((ab) => {
           const binary = String.fromCharCode(...new Uint8Array(ab));
-          return btoa(binary);
+          return "data:image/png;base64," + btoa(binary);
         });
 
-        const previewWindow = window.open("preview.html");
+        previewWindow = window.open("preview.html");
+
         previewWindow.onload = () => {
-          previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
+          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        console.log("⚠️ Photopea reported:", event.data);
-      } else if (event.data.startsWith("📸")) {
-        console.log(event.data);
+        console.log("[flipbook] ⚠️ Error:", event.data);
       }
     }
   });
