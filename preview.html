@@ -35,7 +35,8 @@
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
-    const fps = 2;
+    const fps = 12;
+
     let images = [];
     let index = 0;
 
@@ -76,7 +77,7 @@
         const img = images[index];
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = "#ffffff"; // white background
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           counter.textContent = `Frame: ${index + 1}`;
