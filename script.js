@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
         var original = app.activeDocument;
         app.echoToOE("[flipbook] 🔍 Starting flipbook export...");
 
+        // 🔍 Locate anim_preview
         var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
           var layer = original.layers[i];
@@ -30,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // 🎯 Collect all visible sublayers (ArtLayer, SmartObjects etc.)
         var frameLayers = [];
         for (var i = 0; i < animGroup.layers.length; i++) {
           var sub = animGroup.layers[i];
@@ -40,22 +42,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (frameLayers.length === 0) {
-          app.echoToOE("❌ No visible layers in 'anim_preview'");
+          app.echoToOE("❌ No valid layers found in 'anim_preview'");
           return;
         }
 
+        app.echoToOE("[flipbook] ✅ Total frames: " + frameLayers.length);
+
+        // 📄 Create _temp_export doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
 
-        // Remove all default layers
+        // ❌ Remove default layers
         for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
+        // 📦 Loop through each frame
         for (var i = 0; i < frameLayers.length; i++) {
           var frameLayer = frameLayers[i];
 
-          // Hide all layers in animGroup
+          // 👁️ Hide everything else in animGroup
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = false;
           }
@@ -63,24 +69,44 @@ document.addEventListener("DOMContentLoaded", () => {
           frameLayer.visible = true;
           app.echoToOE("[flipbook] 👁️ Only visible: " + frameLayer.name);
 
-          // Duplicate to tempDoc
+          // 🔁 Duplicate to tempDoc
           app.activeDocument = original;
-          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          var duplicated = null;
+          try {
+            duplicated = frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          } catch (e) {
+            app.echoToOE("[flipbook] ❌ Failed to duplicate: " + frameLayer.name + " | " + e.message);
+            continue;
+          }
 
           app.activeDocument = tempDoc;
+          app.refresh();
 
-          // Clean all but duplicated
-          for (var j = tempDoc.layers.length - 1; j > 0; j--) {
-            try {
-              app.echoToOE("[flipbook] ❌ Deleting extra: " + tempDoc.layers[j].name);
-              tempDoc.layers[j].remove();
-            } catch (e) {}
+          if (!duplicated) {
+            app.echoToOE("[flipbook] ❌ Duplication returned null for: " + frameLayer.name);
+            continue;
+          }
+
+          app.echoToOE("[flipbook] ✅ Duplicated to tempDoc: " + duplicated.name);
+
+          // ❌ Delete all other layers except the one we duplicated
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            if (tempDoc.layers[j] !== duplicated) {
+              app.echoToOE("[flipbook] ❌ Removing: " + tempDoc.layers[j].name);
+              try { tempDoc.layers[j].remove(); } catch (e) {}
+            }
+          }
+
+          // 🧯 Fallback if no layers exist
+          if (tempDoc.layers.length === 0) {
+            var dummy = tempDoc.artLayers.add();
+            dummy.name = "fallback_dummy";
+            app.echoToOE("[flipbook] ⚠️ Dummy layer added to avoid crash");
           }
 
           app.echoToOE("[flipbook] ✅ Final layer in tempDoc: " + tempDoc.layers[0].name);
-          app.refresh();
           tempDoc.saveToOE("png");
-          app.echoToOE("[flipbook] 📸 Exported frame: " + frameLayer.name);
+          app.echoToOE("[flipbook] 📸 Exported: " + frameLayer.name);
         }
 
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
@@ -92,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent refined script to Photopea");
+    console.log("[flipbook] 📤 Sent refined export script to Photopea");
   };
 
   window.addEventListener("message", (event) => {
