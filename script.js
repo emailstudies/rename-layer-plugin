@@ -24,14 +24,15 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup || animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder not found or empty.");
+        if (!animGroup) {
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
-        // Force state stabilization
-        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
-        app.refresh();
+        if (animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder is empty.");
+          return;
+        }
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
@@ -39,22 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-          // Hide all frame layers before toggling one on
+          app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
+
+          app.activeDocument = original;
+          animGroup.visible = true;
+
+          // hide all layers before toggling current one
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = false;
           }
 
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
-
-          // Clear temp doc
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
-
-          // Duplicate into temp
-          app.activeDocument = original;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
@@ -98,11 +98,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewWindow = window.open("preview.html");
 
-        previewWindow.onload = () => {
+        if (!previewWindow) {
+          alert("❌ Could not open preview window. Please allow popups.");
+          return;
+        }
+
+        const sendImages = () => {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
 
-        collectedFrames.length = 0;
+        // Wait for preview to say it's ready
+        window.addEventListener("message", function handleReady(event) {
+          if (event.source === previewWindow && event.data === "READY_FOR_IMAGES") {
+            sendImages();
+            window.removeEventListener("message", handleReady);
+          }
+        });
       } else if (event.data.startsWith("❌")) {
         console.log("[flipbook] ⚠️ Error:", event.data);
       }
