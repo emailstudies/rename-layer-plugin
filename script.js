@@ -15,6 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // 🧼 Close old temp doc if it exists
+        for (var d = 0; d < app.documents.length; d++) {
+          if (app.documents[d].name === "_temp_export") {
+            app.documents[d].close(SaveOptions.DONOTSAVECHANGES);
+            break;
+          }
+        }
+
         var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
           var layer = original.layers[i];
@@ -90,6 +98,10 @@ document.addEventListener("DOMContentLoaded", () => {
           return "data:image/png;base64," + btoa(binary);
         });
 
+        // 🧼 Close previous preview window if open
+        if (previewWindow && !previewWindow.closed) {
+          previewWindow.close();
+        }
         previewWindow = window.open("preview.html");
 
         previewWindow.onload = () => {
@@ -97,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         collectedFrames.length = 0;
+        imageDataURLs = [];
       } else if (event.data.startsWith("❌")) {
         console.log("[flipbook] ⚠️ Error:", event.data);
       }
