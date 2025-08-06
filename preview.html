@@ -11,6 +11,16 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      font-family: sans-serif;
+    }
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
     }
     canvas {
       image-rendering: pixelated;
@@ -18,51 +28,62 @@
   </style>
 </head>
 <body>
+  <div id="counter">Frame: 0</div>
   <canvas id="previewCanvas"></canvas>
-  <script>
-    const frames = [];
-    window.addEventListener("message", (event) => {
-      if (event.data.type === "images") {
-        const base64s = event.data.images;
-        console.log("✅ Frame order received:");
-        base64s.forEach((b64, i) => console.log(`Frame ${i}:`, b64.slice(0, 50)));
 
-        const images = base64s.map(src => {
+  <script>
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+    const counter = document.getElementById("counter");
+    const fps = 12;
+    let images = [];
+    let index = 0;
+
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images") {
+        const srcList = event.data.images;
+        images = srcList.map(src => {
           const img = new Image();
-          img.src = "data:image/png;base64," + src;
+          img.src = src;
           return img;
         });
-
-        const canvas = document.getElementById("previewCanvas");
-        const ctx = canvas.getContext("2d");
-        const fps = 12;
-        let index = 0;
-
-        const preload = () => {
-          let loaded = 0;
-          images.forEach(img => {
-            img.onload = () => {
-              loaded++;
-              if (loaded === images.length) startLoop();
-            };
-          });
-        };
-
-        const startLoop = () => {
-          canvas.width = images[0].width;
-          canvas.height = images[0].height;
-          setInterval(() => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(images[index], 0, 0);
-            index = (index + 1) % images.length;
-          }, 1000 / fps);
-        };
-
-        preload();
+        preloadAndAnimate(images);
       }
     });
+
+    function preloadAndAnimate(images) {
+      let loaded = 0;
+      images.forEach((img, i) => {
+        img.onload = () => {
+          loaded++;
+          console.log(`✅ Loaded image ${i + 1}`);
+          if (loaded === images.length) {
+            startLoop();
+          }
+        };
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
+        };
+      });
+    }
+
+    function startLoop() {
+      if (images.length === 0) return;
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
+
+      setInterval(() => {
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
+    }
   </script>
 </body>
 </html>
