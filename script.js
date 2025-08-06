@@ -34,9 +34,10 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        var firstLayer = animFolder.layers[0];
-        if (!firstLayer) {
-          alert("❌ First frame not found.");
+        var lastIndex = animFolder.layers.length - 1;
+        var lastLayer = animFolder.layers[lastIndex];
+        if (!lastLayer) {
+          alert("❌ Last frame not found.");
           return;
         }
 
@@ -48,17 +49,17 @@ document.addEventListener("DOMContentLoaded", () => {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
-        // Duplicate first layer into tempDoc
+        // Duplicate last layer into tempDoc
         app.activeDocument = original;
-        var wasVisible = firstLayer.visible;
-        firstLayer.visible = true;
-        var dup = firstLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-        firstLayer.visible = wasVisible;
+        var wasVisible = lastLayer.visible;
+        lastLayer.visible = true;
+        var dup = lastLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+        lastLayer.visible = wasVisible;
 
         // Export PNG
         app.activeDocument = tempDoc;
         app.refresh();
-        app.echoToOE("📸 Exported ONLY frame 0: " + firstLayer.name);
+        app.echoToOE("📸 Exported ONLY last frame: " + lastLayer.name);
         tempDoc.saveToOE("png");
 
         // Cleanup
@@ -72,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent single-frame export script to Photopea");
+    console.log("📤 Sent last-frame export script to Photopea");
   };
 
   const collectedFrames = [];
