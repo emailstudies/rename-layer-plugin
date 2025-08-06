@@ -36,18 +36,19 @@
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
+
     const fps = 12;
+    const frameDuration = 1000 / fps;
+
     let images = [];
     let index = 0;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images") {
         const srcList = event.data.images;
-        console.log("🖼️ Received", srcList.length, "images");
-        images = srcList.map((src, i) => {
+        images = srcList.map(src => {
           const img = new Image();
           img.src = src;
-          img.dataset.index = i;
           return img;
         });
         preloadAndAnimate(images);
@@ -61,7 +62,7 @@
           loaded++;
           console.log(`✅ Loaded image ${i + 1}/${images.length} (size: ${img.width}x${img.height})`);
           if (loaded === images.length) {
-            console.log(`🎞️ All ${loaded} images loaded — starting animation`);
+            console.log(`🎞️ All ${images.length} images loaded — starting animation`);
             startLoop();
           }
         };
@@ -72,28 +73,28 @@
     }
 
     function startLoop() {
-      if (images.length === 0) {
-        console.warn("❌ No images to play");
-        return;
-      }
+      if (images.length === 0) return;
 
       canvas.width = images[0].width;
       canvas.height = images[0].height;
 
-      setInterval(() => {
+      index = 0;
+
+      function drawFrame() {
         const img = images[index];
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff"; // You can remove this for transparency
+          ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           counter.textContent = `Frame: ${index + 1}`;
-        } else {
-          console.warn(`⚠️ Skipping frame ${index + 1} — image not ready`);
         }
 
         index = (index + 1) % images.length;
-      }, 1000 / fps);
+        setTimeout(drawFrame, frameDuration);
+      }
+
+      drawFrame();
     }
   </script>
 </body>
