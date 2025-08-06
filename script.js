@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Duplicate with visibility fix
           app.activeDocument = original;
+          original.activeLayer = layer; // ✅ Explicitly select the layer
           var wasVisible = layer.visible;
           layer.visible = true;
           var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
