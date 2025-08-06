@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side with sync per-frame export)
+// flipbook_export.js (Fixed: no global tempDoc, proper closure, reliable export)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  let frameLayers = [];
   let frameIndex = 0;
   let collectedFrames = [];
 
@@ -22,23 +21,29 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
           }
         }
+
         if (!animFolder) {
           alert("❌ 'anim_preview' folder not found.");
           return;
         }
 
-        if (!app._tempExportDoc) {
-          app._tempExportDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        var tempDoc = null;
+        for (var d = 0; d < app.documents.length; d++) {
+          if (app.documents[d].name === "_temp_export") {
+            tempDoc = app.documents[d];
+            break;
+          }
+        }
+        if (!tempDoc) {
+          tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         }
 
-        var tempDoc = app._tempExportDoc;
         var layers = animFolder.layers;
         var layer = layers[${frameIndex}];
 
         if (!layer) {
           app.activeDocument = tempDoc;
           tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          delete app._tempExportDoc;
           app.echoToOE("✅ done");
           return;
         }
@@ -59,8 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
         app.activeDocument = tempDoc;
         app.refresh();
         tempDoc.saveToOE("png");
-        app.echoToOE("[next_frame]");
 
+        app.echoToOE("[next_frame]");
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
