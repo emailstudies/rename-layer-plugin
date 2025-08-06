@@ -1,4 +1,4 @@
-// flipbook_export.js (Fixed: no global tempDoc, proper closure, reliable export)
+// flipbook_export.js (Plugin-side with extra loop for last frame)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -7,13 +7,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  let frameIndex = 0;
-  let collectedFrames = [];
-
-  function sendNextFrame() {
+  btn.onclick = () => {
     const script = `(function () {
       try {
         var original = app.activeDocument;
+        if (!original || original.layers.length === 0) {
+          app.echoToOE("❌ No valid layers found.");
+          return;
+        }
+
         var animFolder = null;
         for (var i = 0; i < original.layers.length; i++) {
           if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
@@ -27,68 +29,49 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        var tempDoc = null;
-        for (var d = 0; d < app.documents.length; d++) {
-          if (app.documents[d].name === "_temp_export") {
-            tempDoc = app.documents[d];
-            break;
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+
+        for (var i = 0; i <= animFolder.layers.length; i++) { // ➕ Extra iteration to ensure last frame completes
+          if (i === animFolder.layers.length) {
+            app.refresh();
+            continue;
           }
-        }
-        if (!tempDoc) {
-          tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-        }
 
-        var layers = animFolder.layers;
-        var layer = layers[${frameIndex}];
+          var layer = animFolder.layers[i];
+          if (layer.name === "Background" && layer.locked) continue;
 
-        if (!layer) {
           app.activeDocument = tempDoc;
-          tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-          app.echoToOE("✅ done");
-          return;
-        }
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
 
-        if (layer.name === "Background" && layer.locked) {
-          app.echoToOE("[next_frame]");
-          return;
+          app.activeDocument = original;
+          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+          app.activeDocument = tempDoc;
+          app.refresh();
+          tempDoc.saveToOE("png");
         }
 
         app.activeDocument = tempDoc;
-        for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-          try { tempDoc.layers[j].remove(); } catch (e) {}
-        }
-
-        app.activeDocument = original;
-        var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-        app.activeDocument = tempDoc;
-        app.refresh();
-        tempDoc.saveToOE("png");
-
-        app.echoToOE("[next_frame]");
+        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+        app.echoToOE("✅ done");
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-  }
-
-  btn.onclick = () => {
-    frameIndex = 0;
-    collectedFrames = [];
-    sendNextFrame();
+    console.log("📤 Sent export script to Photopea");
   };
+
+  const collectedFrames = [];
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      if (event.data === "[next_frame]") {
-        frameIndex++;
-        sendNextFrame();
-
-      } else if (event.data === "✅ done") {
+      if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
           console.log("❌ No frames received.");
           return;
@@ -105,7 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         collectedFrames.length = 0;
-
       } else if (event.data.startsWith("❌")) {
         console.log("⚠️ Photopea reported:", event.data);
       }
