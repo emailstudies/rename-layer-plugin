@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!btn) {
     console.error("❌ Button not found");
     return;
-  }
+  } 
 
   btn.onclick = () => {
     const script = `(function () {
