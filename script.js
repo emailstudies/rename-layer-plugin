@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         // Iterate from bottom (UI top layer) to top (UI bottom layer)
-        for (var i = animFolder.layers.length - 1; i >= 0; i--) {
+        for (var i = animFolder.layers.length; i >= 0; i--) {
           var layer = animFolder.layers[i];
           if (layer.name === "Background" && layer.locked) continue;
 
