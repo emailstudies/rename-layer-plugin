@@ -1,121 +1,51 @@
-// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button not found");
+    console.error("❌ Button #addDummyBtn not found");
     return;
   }
 
   btn.onclick = () => {
     const script = `(function () {
       try {
-        var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
+        var doc = app.activeDocument;
+        if (!doc || doc.layers.length === 0) {
+          alert("❌ No active document or layers.");
           return;
         }
 
+        // Find 'anim_preview' folder
         var animFolder = null;
-        for (var i = 0; i < original.layers.length; i++) {
-          if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
-            animFolder = original.layers[i];
+        for (var i = 0; i < doc.layers.length; i++) {
+          if (doc.layers[i].name === "anim_preview" && doc.layers[i].typename === "LayerSet") {
+            animFolder = doc.layers[i];
             break;
           }
         }
 
         if (!animFolder) {
-          alert("❌ 'anim_preview' folder not found.");
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
-        // Create dummy transparent layer and move to bottom
-        app.activeDocument = original;
-        var dummyLayer = original.artLayers.add();
-        dummyLayer.name = "dummy";
-        dummyLayer.opacity = 0;
-        dummyLayer.visible = false;
-        dummyLayer.move(animFolder.layers[animFolder.layers.length - 1], ElementPlacement.PLACEAFTER);
+        // Create transparent dummy layer
+        app.activeDocument = doc;
+        var dummy = doc.artLayers.add();
+        dummy.name = "dummy";
+        dummy.opacity = 0;
+        dummy.visible = false;
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        // Move dummy to bottom of anim_preview
+        dummy.move(animFolder.layers[animFolder.layers.length - 1], ElementPlacement.PLACEAFTER);
 
-        for (var i = 0; i < animFolder.layers.length; i++) {
-          var layer = animFolder.layers[i];
-          if (layer.name === "Background" && layer.locked) continue;
-          if (layer.name === "dummy") continue;
-
-          // Clear tempDoc
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
-
-          // Duplicate with visibility fix
-          app.activeDocument = original;
-          original.activeLayer = layer;
-          var wasVisible = layer.visible;
-          layer.visible = true;
-          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          layer.visible = wasVisible;
-
-          // Export frame
-          app.activeDocument = tempDoc;
-          app.refresh();
-          app.echoToOE("📸 Exported frame: " + layer.name);
-          tempDoc.saveToOE("png");
-        }
-
-        // Remove dummy layer
-        app.activeDocument = original;
-        for (var i = 0; i < animFolder.layers.length; i++) {
-          if (animFolder.layers[i].name === "dummy") {
-            animFolder.layers[i].remove();
-            break;
-          }
-        }
-
-        // Cleanup
-        app.activeDocument = tempDoc;
-        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.activeDocument = original;
-        app.echoToOE("✅ done");
+        alert("✅ Dummy layer added to 'anim_preview'.");
       } catch (e) {
-        app.echoToOE("❌ ERROR: " + e.message);
+        alert("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent export script to Photopea");
+    console.log("📤 Sent dummy layer insertion script to Photopea");
   };
-
-  const collectedFrames = [];
-
-  window.addEventListener("message", (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      collectedFrames.push(event.data);
-    } else if (typeof event.data === "string") {
-      if (event.data === "✅ done") {
-        if (collectedFrames.length === 0) {
-          console.log("❌ No frames received.");
-          return;
-        }
-
-        const framesBase64 = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return btoa(binary);
-        });
-
-        const previewWindow = window.open("preview.html");
-        previewWindow.onload = () => {
-          previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
-        };
-
-        collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.log("⚠️ Photopea reported:", event.data);
-      } else if (event.data.startsWith("📸")) {
-        console.log(event.data);
-      }
-    }
-  });
 });
