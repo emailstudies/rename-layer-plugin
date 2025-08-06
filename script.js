@@ -24,15 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup) {
-          alert("❌ Folder 'anim_preview' not found.");
+        if (!animGroup || animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder is missing or empty.");
           return;
         }
 
-        if (animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is empty.");
-          return;
-        }
+        // Select the last (bottommost) frame to avoid context issues
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+        app.refresh();
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
@@ -40,28 +39,29 @@ document.addEventListener("DOMContentLoaded", () => {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // Clear temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          // Switch to original and show only current frame
           app.activeDocument = original;
-          animGroup.visible = true;
-
-          // hide all layers before toggling current one
-          for (var j = 0; j < animGroup.layers.length; j++) {
-            animGroup.layers[j].visible = false;
+          for (var k = 0; k < animGroup.layers.length; k++) {
+            animGroup.layers[k].visible = false;
           }
 
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
+          // Export frame
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
         }
 
+        // Cleanup
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
@@ -97,23 +97,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
-
         if (!previewWindow) {
           alert("❌ Could not open preview window. Please allow popups.");
           return;
         }
 
         const sendImages = () => {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+          try {
+            previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+          } catch (err) {
+            console.error("❌ Failed to send frames:", err);
+          }
         };
 
-        // Wait for preview to say it's ready
-        window.addEventListener("message", function handleReady(event) {
-          if (event.source === previewWindow && event.data === "READY_FOR_IMAGES") {
-            sendImages();
-            window.removeEventListener("message", handleReady);
-          }
-        });
+        if (previewWindow.document?.readyState === "complete") {
+          sendImages();
+        } else {
+          previewWindow.onload = sendImages;
+        }
+
+        collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
         console.log("[flipbook] ⚠️ Error:", event.data);
       }
