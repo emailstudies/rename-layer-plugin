@@ -21,6 +21,7 @@
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
+      font-size: 14px;
     }
     canvas {
       image-rendering: pixelated;
@@ -42,9 +43,11 @@
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images") {
         const srcList = event.data.images;
-        images = srcList.map(src => {
+        console.log("🖼️ Received", srcList.length, "images");
+        images = srcList.map((src, i) => {
           const img = new Image();
           img.src = src;
+          img.dataset.index = i;
           return img;
         });
         preloadAndAnimate(images);
@@ -56,8 +59,9 @@
       images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
+          console.log(`✅ Loaded image ${i + 1}/${images.length} (size: ${img.width}x${img.height})`);
           if (loaded === images.length) {
+            console.log(`🎞️ All ${loaded} images loaded — starting animation`);
             startLoop();
           }
         };
@@ -68,7 +72,11 @@
     }
 
     function startLoop() {
-      if (images.length === 0) return;
+      if (images.length === 0) {
+        console.warn("❌ No images to play");
+        return;
+      }
+
       canvas.width = images[0].width;
       canvas.height = images[0].height;
 
@@ -76,11 +84,14 @@
         const img = images[index];
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = "#ffffff"; // You can remove this for transparency
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           counter.textContent = `Frame: ${index + 1}`;
+        } else {
+          console.warn(`⚠️ Skipping frame ${index + 1} — image not ready`);
         }
+
         index = (index + 1) % images.length;
       }, 1000 / fps);
     }
