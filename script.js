@@ -31,16 +31,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.echoToOE("🔧 Exporting " + animGroup.layers.length + " frame(s)...");
 
-        // Create temp doc with transparency
-        var desc = new ActionDescriptor();
-        desc.putUnitDouble(charIDToTypeID("Wdth"), charIDToTypeID("#Pxl"), original.width);
-        desc.putUnitDouble(charIDToTypeID("Hght"), charIDToTypeID("#Pxl"), original.height);
-        desc.putUnitDouble(charIDToTypeID("Rslt"), charIDToTypeID("#Rsl"), original.resolution);
-        desc.putClass(charIDToTypeID("Md  "), charIDToTypeID("RGBM"));
-        desc.putBoolean(stringIDToTypeID("fillTransparent"), true);
-        desc.putString(charIDToTypeID("Nm  "), "_temp_export");
-        executeAction(charIDToTypeID("Mk  "), desc, DialogModes.NO);
-        var tempDoc = app.activeDocument;
+        // Create new temp doc and remove background to ensure transparency
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.echoToOE("🆕 Created _temp_export");
+
+        app.activeDocument = tempDoc;
+        for (var i = tempDoc.layers.length - 1; i >= 0; i--) {
+          try { tempDoc.layers[i].remove(); } catch (e) {}
+        }
+        app.echoToOE("🧹 Cleared temp export background");
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
@@ -48,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           app.echoToOE("🎞️ Frame " + (animGroup.layers.length - i) + ": " + frameLayer.name);
 
-          // Hide all layers first
+          // Hide all other layers
           for (var k = 0; k < animGroup.layers.length; k++) {
             animGroup.layers[k].visible = false;
           }
@@ -57,19 +56,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
           app.echoToOE("👁️ Showing only: " + frameLayer.name);
 
-          // Clear temp doc
+          // Clear temp doc before duplicating
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
-          app.echoToOE("🧹 Cleared temp doc");
+
+          app.echoToOE("🧽 Temp doc cleared before duplication");
 
           // Duplicate frame into temp doc
           app.activeDocument = original;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
           app.echoToOE("📋 Duplicated: " + frameLayer.name);
 
-          // Export
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
