@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side — Fix: preserve .visible state when duplicating from anim_preview)
+// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -36,9 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (layer.name === "Background" && layer.locked) continue;
 
-          var wasVisible = layer.visible;
-          layer.visible = true;
-
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
@@ -46,17 +43,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
           app.activeDocument = original;
           var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          layer.visible = wasVisible;
 
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("📸 Exporting frame: " + layer.name);
           tempDoc.saveToOE("png");
         }
 
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.activeDocument = original;
         app.echoToOE("✅ done");
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
@@ -74,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
       if (event.data === "✅ done") {
-        console.log(`✅ All frames received: ${collectedFrames.length}`);
         if (collectedFrames.length === 0) {
           console.log("❌ No frames received.");
           return;
