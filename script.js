@@ -1,4 +1,3 @@
-// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -35,43 +34,49 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // ✅ Add dummy layer
+        var dummy = animGroup.artLayers.add();
+        dummy.name = "_dummy_frame_fix";
+        app.echoToOE("[flipbook] ➕ Dummy frame added");
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-        app.activeDocument = tempDoc;
 
-        // Add dummy layer initially to prevent empty doc error
-        var dummy = tempDoc.artLayers.add();
-        dummy.name = "__DUMMY__";
-
-        // Export each frame in reverse order (bottom-most is first)
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
-          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-          // Clean up tempDoc
+          if (
+            frameLayer.name === "_dummy_frame_fix" ||
+            (frameLayer.name === "Background" && frameLayer.locked)
+          ) continue;
+
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
-          // Duplicate frame
           app.activeDocument = original;
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
-
-          try {
-            frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          } catch (e) {
-            app.echoToOE("❌ Duplicate failed for frame: " + frameLayer.name + " - " + e.message);
-            continue;
-          }
+          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
           app.refresh();
+
+          app.echoToOE("[flipbook] 📸 Exported frame: " + frameLayer.name);
           tempDoc.saveToOE("png");
         }
 
-        // Final cleanup
+        // 🧹 Remove dummy
+        app.activeDocument = original;
+        for (var i = 0; i < animGroup.layers.length; i++) {
+          if (animGroup.layers[i].name === "_dummy_frame_fix") {
+            animGroup.layers[i].remove();
+            app.echoToOE("[flipbook] 🗑 Dummy frame removed");
+            break;
+          }
+        }
+
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
@@ -107,7 +112,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
-
         previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
