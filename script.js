@@ -33,24 +33,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
         for (var i = 0; i < animFolder.layers.length; i++) {
           var layer = animFolder.layers[i];
-
           if (layer.name === "Background" && layer.locked) continue;
 
+          // Clear tempDoc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          // Duplicate with visibility fix
           app.activeDocument = original;
+          var wasVisible = layer.visible;
+          layer.visible = true;
           var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          layer.visible = wasVisible;
 
+          // Export frame
           app.activeDocument = tempDoc;
           app.refresh();
+          app.echoToOE("📸 Exported frame: " + layer.name);
           tempDoc.saveToOE("png");
         }
 
+        // Cleanup
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+        app.activeDocument = original;
         app.echoToOE("✅ done");
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
@@ -86,6 +94,8 @@ document.addEventListener("DOMContentLoaded", () => {
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
         console.log("⚠️ Photopea reported:", event.data);
+      } else if (event.data.startsWith("📸")) {
+        console.log(event.data);
       }
     }
   });
