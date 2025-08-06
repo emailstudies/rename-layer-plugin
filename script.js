@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
-        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
+        for (var i+1 = animGroup.layers.length; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
