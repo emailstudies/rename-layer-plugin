@@ -1,3 +1,4 @@
+// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -13,14 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!original || original.layers.length === 0) {
           alert("❌ No valid layers found.");
           return;
-        }
-
-        // 🧼 Close old temp doc if it exists
-        for (var d = 0; d < app.documents.length; d++) {
-          if (app.documents[d].name === "_temp_export") {
-            app.documents[d].close(SaveOptions.DONOTSAVECHANGES);
-            break;
-          }
         }
 
         var animGroup = null;
@@ -43,27 +36,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.activeDocument = tempDoc;
 
+        // Add dummy layer initially to prevent empty doc error
+        var dummy = tempDoc.artLayers.add();
+        dummy.name = "__DUMMY__";
+
+        // Export each frame in reverse order (bottom-most is first)
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // Clean up tempDoc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          // Duplicate frame
           app.activeDocument = original;
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
-          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+          try {
+            frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          } catch (e) {
+            app.echoToOE("❌ Duplicate failed for frame: " + frameLayer.name + " - " + e.message);
+            continue;
+          }
 
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
         }
 
+        // Final cleanup
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
@@ -98,10 +106,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return "data:image/png;base64," + btoa(binary);
         });
 
-        // 🧼 Close previous preview window if open
-        if (previewWindow && !previewWindow.closed) {
-          previewWindow.close();
-        }
         previewWindow = window.open("preview.html");
 
         previewWindow.onload = () => {
@@ -109,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         collectedFrames.length = 0;
-        imageDataURLs = [];
       } else if (event.data.startsWith("❌")) {
         console.log("[flipbook] ⚠️ Error:", event.data);
       }
