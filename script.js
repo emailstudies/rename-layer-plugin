@@ -6,6 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  const collectedFrames = [];
+  let imageDataURLs = [];
+  let previewWindow = null;
+  let awaitingFrame = false;
+
   btn.onclick = () => {
     const script = `(function () {
       try {
@@ -14,8 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
           app.echoToOE("❌ No valid layers found.");
           return;
         }
-
-        app.echoToOE("[flipbook] 📄 Active document: " + doc.name);
 
         var animGroup = null;
         for (var i = 0; i < doc.layers.length; i++) {
@@ -36,55 +39,74 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        app.echoToOE("[flipbook] ✅ Found 'anim_preview' with " + animGroup.layers.length + " frame(s)");
-
-        // Hide all root layers except anim_preview
         for (var i = 0; i < doc.layers.length; i++) {
-          var rootLayer = doc.layers[i];
-          rootLayer.visible = (rootLayer === animGroup);
+          doc.layers[i].visible = (doc.layers[i] === animGroup);
         }
 
-        app.echoToOE("[flipbook] 👁️ Hid all layers except 'anim_preview'");
-
-        // Hide all anim_preview sublayers
         for (var i = 0; i < animGroup.layers.length; i++) {
           animGroup.layers[i].visible = false;
         }
 
-        // Export each frame
-        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
-          var frame = animGroup.layers[i];
+        app.echoToOE("[flipbook] ▶️ Starting controlled export");
+        app.echoToOE("[flipbook] total:" + animGroup.layers.length);
+
+        window._animPreview = animGroup;
+        window._frameIndex = animGroup.layers.length - 1; // reverse order
+        window._continueFlipbook = function () {
+          var i = window._frameIndex;
+          if (i < 0) {
+            app.echoToOE("✅ done");
+            delete window._animPreview;
+            delete window._frameIndex;
+            delete window._continueFlipbook;
+            return;
+          }
+
+          var frame = window._animPreview.layers[i];
           frame.visible = true;
           app.refresh();
+          app.echoToOE("[flipbook] ready:" + (window._animPreview.layers.length - i));
+        };
 
-          app.echoToOE("[flipbook] 📸 Exporting frame " + (animGroup.layers.length - i) + ": " + frame.name);
-          app.saveToOE("png");
-
-          frame.visible = false;
-        }
-
-        app.echoToOE("✅ done");
-
+        window._continueFlipbook();
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent visibility-based export script to Photopea");
+    console.log("[flipbook] 📤 Sent controlled export script to Photopea");
   };
-
-  const collectedFrames = [];
-  let imageDataURLs = [];
-  let previewWindow = null;
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
-    } else if (typeof event.data === "string") {
-      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+      awaitingFrame = false;
 
-      if (event.data === "✅ done") {
+      // Request next frame
+      const nextScript = `(function () {
+        if (typeof window._continueFlipbook === "function") {
+          window._frameIndex--;
+          window._continueFlipbook();
+        }
+      })();`;
+      parent.postMessage(nextScript, "*");
+
+    } else if (typeof event.data === "string") {
+      const msg = event.data;
+      console.log("[flipbook] 📩 Message from Photopea:", msg);
+
+      if (msg.startsWith("[flipbook] ready:")) {
+        if (awaitingFrame) return;
+        awaitingFrame = true;
+        console.log("[flipbook] 🟢 Frame visible, saving PNG...");
+        parent.postMessage(`app.saveToOE("png");`, "*");
+
+      } else if (msg.startsWith("[flipbook] total:")) {
+        const total = msg.split(":")[1];
+        console.log("[flipbook] 🧮 Total frames:", total);
+
+      } else if (msg === "✅ done") {
         if (collectedFrames.length === 0) {
           alert("❌ No frames received.");
           return;
@@ -96,16 +118,16 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
-
         previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
 
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.error("[flipbook] ⚠️ Error from Photopea:", event.data);
+        console.log("[flipbook] ✅ All frames exported and sent to preview");
+      } else if (msg.startsWith("❌")) {
+        console.error("[flipbook] ⚠️ Error from Photopea:", msg);
       } else {
-        console.log("[flipbook] ℹ️", event.data);
+        console.log("[flipbook] ℹ️", msg);
       }
     }
   });
