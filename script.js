@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button not found");
+    console.error("❌ Button #renameBtn not found");
     return;
   }
 
@@ -24,36 +24,53 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup) {
-          alert("❌ Folder 'anim_preview' not found.");
+        if (!animGroup || animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder is missing or empty.");
           return;
         }
 
-        if (animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is empty.");
-          return;
-        }
+        app.echoToOE("🔧 Starting export of " + animGroup.layers.length + " frames...");
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        var tempDoc = app.documents.add(
+          original.width,
+          original.height,
+          original.resolution,
+          "_temp_export",
+          NewDocumentMode.RGB
+        );
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          app.echoToOE("🎞️ Frame " + (animGroup.layers.length - i) + ": Preparing '" + frameLayer.name + "'");
+
+          // Hide all first
+          for (var k = 0; k < animGroup.layers.length; k++) {
+            animGroup.layers[k].visible = false;
+          }
+          frameLayer.visible = true;
+          original.activeLayer = frameLayer;
+
+          app.echoToOE("👁️ Only '" + frameLayer.name + "' is now visible");
+
+          // Clear temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
+          app.echoToOE("🧹 Temp document cleaned");
 
+          // Duplicate to temp
           app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
-          original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("📋 Duplicated '" + frameLayer.name + "' into temp doc");
 
+          // Export
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
+          app.echoToOE("💾 Exported '" + frameLayer.name + "' as PNG");
         }
 
         app.activeDocument = tempDoc;
@@ -77,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+      console.log("[flipbook] 📩 Message from Photopea:\n", event.data);
 
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
@@ -92,9 +109,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewWindow = window.open("preview.html");
 
-        previewWindow.onload = () => {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+        if (!previewWindow) {
+          alert("❌ Could not open preview window. Please allow popups.");
+          return;
+        }
+
+        const sendImages = () => {
+          try {
+            previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+          } catch (err) {
+            console.error("❌ Failed to send frames:", err);
+          }
         };
+
+        if (previewWindow.document && previewWindow.document.readyState === "complete") {
+          sendImages();
+        } else {
+          previewWindow.onload = sendImages;
+        }
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
