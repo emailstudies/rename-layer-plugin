@@ -66,40 +66,39 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent export script to Photopea");
+    console.log("[flipbook] 📤 Sent export script to Photopea");
   };
 
   const collectedFrames = [];
+  let imageDataURLs = [];
   let previewWindow = null;
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
+      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
           alert("❌ No frames received.");
           return;
         }
 
-        // Open the preview window
+        imageDataURLs = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return "data:image/png;base64," + btoa(binary);
+        });
+
         previewWindow = window.open("preview.html");
 
-        // Send frames after it loads
-        const sendFrames = () => {
-          previewWindow.postMessage({ type: "frames", frames: collectedFrames }, "*");
-          collectedFrames.length = 0;
+        previewWindow.onload = () => {
+          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
 
-        // If already loaded, send immediately
-        previewWindow.onload = sendFrames;
-
-        // Or fallback if onload doesn't fire
-        setTimeout(() => {
-          if (previewWindow) sendFrames();
-        }, 1000);
+        collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        console.log("⚠️ Photopea error:", event.data);
+        console.log("[flipbook] ⚠️ Error:", event.data);
       }
     }
   });
