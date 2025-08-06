@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // 🎯 Collect all visible sublayers (ArtLayer, SmartObjects etc.)
+        // 🎯 Collect valid layers
         var frameLayers = [];
         for (var i = 0; i < animGroup.layers.length; i++) {
           var sub = animGroup.layers[i];
@@ -42,71 +42,71 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (frameLayers.length === 0) {
-          app.echoToOE("❌ No valid layers found in 'anim_preview'");
+          app.echoToOE("❌ No valid layers in 'anim_preview'");
           return;
         }
 
         app.echoToOE("[flipbook] ✅ Total frames: " + frameLayers.length);
 
-        // 📄 Create _temp_export doc
+        // 🆕 Create temp doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
 
-        // ❌ Remove default layers
+        // ❌ Remove default background
         for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
-        // 📦 Loop through each frame
+        // 🔁 Loop and export each frame
         for (var i = 0; i < frameLayers.length; i++) {
           var frameLayer = frameLayers[i];
 
-          // 👁️ Hide everything else in animGroup
+          // 🔒 Hide all others
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = false;
           }
 
           frameLayer.visible = true;
-          app.echoToOE("[flipbook] 👁️ Only visible: " + frameLayer.name);
+          app.refresh();
+          app.echoToOE("[flipbook] 👁️ Visible: " + frameLayer.name);
 
-          // 🔁 Duplicate to tempDoc
+          // 🔁 Duplicate frame to temp doc
           app.activeDocument = original;
           var duplicated = null;
           try {
             duplicated = frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+            app.echoToOE("[flipbook] ✅ Duplicated: " + duplicated.name);
           } catch (e) {
-            app.echoToOE("[flipbook] ❌ Failed to duplicate: " + frameLayer.name + " | " + e.message);
+            app.echoToOE("[flipbook] ❌ Duplication failed: " + e.message);
             continue;
           }
 
           app.activeDocument = tempDoc;
           app.refresh();
 
-          if (!duplicated) {
-            app.echoToOE("[flipbook] ❌ Duplication returned null for: " + frameLayer.name);
-            continue;
-          }
-
-          app.echoToOE("[flipbook] ✅ Duplicated to tempDoc: " + duplicated.name);
-
-          // ❌ Delete all other layers except the one we duplicated
+          // 🧹 Remove all others
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            if (tempDoc.layers[j] !== duplicated) {
-              app.echoToOE("[flipbook] ❌ Removing: " + tempDoc.layers[j].name);
-              try { tempDoc.layers[j].remove(); } catch (e) {}
+            var l = tempDoc.layers[j];
+            if (l !== duplicated) {
+              try {
+                app.echoToOE("[flipbook] ❌ Removing: " + l.name);
+                l.remove();
+              } catch (e) {}
             }
           }
 
-          // 🧯 Fallback if no layers exist
+          // 🧯 Ensure at least one layer
           if (tempDoc.layers.length === 0) {
-            var dummy = tempDoc.artLayers.add();
-            dummy.name = "fallback_dummy";
-            app.echoToOE("[flipbook] ⚠️ Dummy layer added to avoid crash");
+            var fallback = tempDoc.artLayers.add();
+            fallback.name = "dummy";
+            app.echoToOE("[flipbook] ⚠️ Dummy layer added");
           }
 
-          app.echoToOE("[flipbook] ✅ Final layer in tempDoc: " + tempDoc.layers[0].name);
+          app.echoToOE("[flipbook] ✅ Final in tempDoc: " + tempDoc.layers[0].name);
+
+          // 🖼 Export PNG
           tempDoc.saveToOE("png");
-          app.echoToOE("[flipbook] 📸 Exported: " + frameLayer.name);
+          app.echoToOE("[flipbook] 📸 Exported frame: " + frameLayer.name);
         }
 
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
