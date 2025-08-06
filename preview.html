@@ -12,70 +12,75 @@
       justify-content: center;
       align-items: center;
       font-family: sans-serif;
-      color: white;
-    }
-    canvas {
-      image-rendering: pixelated;
     }
     #counter {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       padding: 4px 8px;
+      color: white;
       border-radius: 4px;
+    }
+    canvas {
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
   <canvas id="previewCanvas"></canvas>
+
   <script>
-    let frames = [];
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+    const counter = document.getElementById("counter");
+    const fps = 12;
     let images = [];
-    let fps = 12;
     let index = 0;
 
     window.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "frames") {
-        frames = event.data.frames.map(ab => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return "data:image/png;base64," + btoa(binary);
-        });
-
-        images = frames.map(src => {
+      if (event.data?.type === "images") {
+        const srcList = event.data.images;
+        images = srcList.map(src => {
           const img = new Image();
           img.src = src;
           return img;
         });
-
-        preload();
+        preloadAndAnimate(images);
       }
     });
 
-    const canvas = document.getElementById("previewCanvas");
-    const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
-
-    function preload() {
+    function preloadAndAnimate(images) {
       let loaded = 0;
-      images.forEach(img => {
+      images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          if (loaded === images.length) startLoop();
+          console.log(`✅ Loaded image ${i + 1}`);
+          if (loaded === images.length) {
+            startLoop();
+          }
+        };
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
         };
       });
     }
 
     function startLoop() {
+      if (images.length === 0) return;
       canvas.width = images[0].width;
       canvas.height = images[0].height;
+
       setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(images[index], 0, 0);
-        counter.textContent = "Frame: " + (index + 1);
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
         index = (index + 1) % images.length;
       }, 1000 / fps);
     }
