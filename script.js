@@ -24,20 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup) {
-          alert("❌ Folder 'anim_preview' not found.");
+        if (!animGroup || animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder not found or empty.");
           return;
         }
 
-        if (animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is empty.");
-          return;
-        }
-
-        // ✅ Fix for missing frame: force layer stack refresh
-        original.activeLayer = animGroup.layers[0]; // Select bottom-most
-        app.refresh();
-        original.activeLayer = animGroup.layers[animGroup.layers.length - 1]; // Select top-most
+        // Force state stabilization
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
         app.refresh();
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
@@ -46,15 +39,22 @@ document.addEventListener("DOMContentLoaded", () => {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // Hide all frame layers before toggling one on
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = false;
+          }
+
+          frameLayer.visible = true;
+          original.activeLayer = frameLayer;
+
+          // Clear temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          // Duplicate into temp
           app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
-          original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
