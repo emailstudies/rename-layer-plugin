@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-  
+
   if (!btn) {
     console.error("❌ Button not found");
     return;
@@ -34,21 +34,41 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Select bottom layer as safety step
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+
+        function logLayerVisibility(label) {
+          var output = "\\n🔍 Layer visibility at: " + label + "\\n";
+          for (var v = 0; v < animGroup.layers.length; v++) {
+            output += "[" + v + "] " + animGroup.layers[v].name + " → visible=" + animGroup.layers[v].visible + "\\n";
+          }
+          app.echoToOE(output);
+        }
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // Clear tempDoc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          // Toggle visibility
           app.activeDocument = original;
-          animGroup.visible = true;
+          for (var k = 0; k < animGroup.layers.length; k++) {
+            animGroup.layers[k].visible = false;
+          }
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
+
+          // Log visibility state
+          logLayerVisibility("Before duplicating " + frameLayer.name);
+
+          app.refresh();
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
@@ -91,14 +111,28 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
+        if (!previewWindow) {
+          alert("❌ Could not open preview window. Please allow popups.");
+          return;
+        }
 
-        previewWindow.onload = () => {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+        const sendImages = () => {
+          try {
+            previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+          } catch (err) {
+            console.error("❌ Failed to send frames:", err);
+          }
         };
 
+        if (previewWindow.document && previewWindow.document.readyState === "complete") {
+          sendImages();
+        } else {
+          previewWindow.onload = sendImages;
+        }
+
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.log("[flipbook] ⚠️ Error:", event.data);
+      } else if (event.data.startsWith("❌") || event.data.includes("🔍")) {
+        console.log("[flipbook] ℹ️ Log or error:\n" + event.data);
       }
     }
   });
