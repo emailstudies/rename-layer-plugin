@@ -1,51 +1,108 @@
+// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button #addDummyBtn not found");
+    console.error("❌ Button not found");
     return;
   }
 
   btn.onclick = () => {
     const script = `(function () {
       try {
-        var doc = app.activeDocument;
-        if (!doc || doc.layers.length === 0) {
-          alert("❌ No active document or layers.");
+        var original = app.activeDocument;
+        if (!original || original.layers.length === 0) {
+          app.echoToOE("❌ No valid layers found.");
           return;
         }
 
-        // Find 'anim_preview' folder
         var animFolder = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-          if (doc.layers[i].name === "anim_preview" && doc.layers[i].typename === "LayerSet") {
-            animFolder = doc.layers[i];
+        for (var i = 0; i < original.layers.length; i++) {
+          if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
+            animFolder = original.layers[i];
             break;
           }
         }
 
         if (!animFolder) {
-          alert("❌ Folder 'anim_preview' not found.");
+          alert("❌ 'anim_preview' folder not found.");
           return;
         }
 
-        // Create transparent dummy layer
-        app.activeDocument = doc;
-        var dummy = doc.artLayers.add();
-        dummy.name = "dummy";
-        dummy.opacity = 0;
-        dummy.visible = false;
+        if (animFolder.layers.length === 0) {
+          alert("❌ 'anim_preview' has no layers.");
+          return;
+        }
 
-        // Move dummy to bottom of anim_preview
-        dummy.move(animFolder.layers[animFolder.layers.length - 1], ElementPlacement.PLACEAFTER);
+        var firstLayer = animFolder.layers[0];
+        if (!firstLayer) {
+          alert("❌ First frame not found.");
+          return;
+        }
 
-        alert("✅ Dummy layer added to 'anim_preview'.");
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+
+        // Clear default background from tempDoc
+        app.activeDocument = tempDoc;
+        for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+          try { tempDoc.layers[j].remove(); } catch (e) {}
+        }
+
+        // Duplicate first layer into tempDoc
+        app.activeDocument = original;
+        var wasVisible = firstLayer.visible;
+        firstLayer.visible = true;
+        var dup = firstLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+        firstLayer.visible = wasVisible;
+
+        // Export PNG
+        app.activeDocument = tempDoc;
+        app.refresh();
+        app.echoToOE("📸 Exported ONLY frame 0: " + firstLayer.name);
+        tempDoc.saveToOE("png");
+
+        // Cleanup
+        app.activeDocument = tempDoc;
+        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+        app.activeDocument = original;
+        app.echoToOE("✅ done");
       } catch (e) {
-        alert("❌ ERROR: " + e.message);
+        app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent dummy layer insertion script to Photopea");
+    console.log("📤 Sent single-frame export script to Photopea");
   };
+
+  const collectedFrames = [];
+
+  window.addEventListener("message", (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      collectedFrames.push(event.data);
+    } else if (typeof event.data === "string") {
+      if (event.data === "✅ done") {
+        if (collectedFrames.length === 0) {
+          console.log("❌ No frame received.");
+          return;
+        }
+
+        const framesBase64 = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return btoa(binary);
+        });
+
+        const previewWindow = window.open("preview.html");
+        previewWindow.onload = () => {
+          previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
+        };
+
+        collectedFrames.length = 0;
+      } else if (event.data.startsWith("❌")) {
+        console.log("⚠️ Photopea reported:", event.data);
+      } else if (event.data.startsWith("📸")) {
+        console.log(event.data);
+      }
+    }
+  });
 });
