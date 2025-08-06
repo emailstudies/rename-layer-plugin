@@ -1,47 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>Flipbook Preview</title>
   <style>
-    body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
-    canvas { image-rendering: pixelated; }
+    html, body {
+      margin: 0;
+      background: #fff;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
+      font-family: sans-serif;
+    }
+    canvas {
+      image-rendering: pixelated;
+    }
   </style>
 </head>
 <body>
-  <canvas id="flipbook"></canvas>
-  <script>
-    const canvas = document.getElementById("flipbook");
-    const ctx = canvas.getContext("2d");
-    let frames = [];
-    let index = 0;
-    let delay = 100;
+  <div id="counter">Frame: 0</div>
+  <canvas id="previewCanvas"></canvas>
 
-    // Let plugin know we're ready
-    window.opener?.postMessage("READY_FOR_IMAGES", "*");
+  <script>
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+    const counter = document.getElementById("counter");
+    const fps = 12;
+    let images = [];
+    let index = 0;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images") {
-        frames = event.data.images;
-        console.log(`✅ Received ${frames.length} images`);
-
-        const img = new Image();
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          startAnimation();
-        };
-        img.src = frames[0];
+        const srcList = event.data.images;
+        images = srcList.map(src => {
+          const img = new Image();
+          img.src = src;
+          return img;
+        });
+        preloadAndAnimate(images);
       }
     });
 
-    function startAnimation() {
+    function preloadAndAnimate(images) {
+      let loaded = 0;
+      images.forEach((img, i) => {
+        img.onload = () => {
+          loaded++;
+          if (loaded === images.length) {
+            startLoop();
+          }
+        };
+        img.onerror = () => console.warn(`❌ Failed to load image ${i + 1}`);
+      });
+    }
+
+    function startLoop() {
+      if (images.length === 0) return;
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
+
       setInterval(() => {
-        const img = new Image();
-        img.onload = () => ctx.drawImage(img, 0, 0);
-        img.src = frames[index];
-        index = (index + 1) % frames.length;
-      }, delay);
+        const img = images[index];
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
     }
   </script>
 </body>
