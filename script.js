@@ -1,6 +1,6 @@
-// flipbook_export.js (Plugin-side — fixed order, safe export)
+// flipbook_export.js (Plugin-side — Clean tempDoc before duplication, fix repeated frame issue)
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const btn = document.getElementById("rename Btn");
 
   if (!btn) {
     console.error("❌ Button not found");
@@ -36,16 +36,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (layer.name === "Background" && layer.locked) continue;
 
-          app.activeDocument = original;
-          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            if (tempDoc.layers[j] !== dup) {
-              try { tempDoc.layers[j].remove(); } catch (e) {}
-            }
+            try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
+          app.activeDocument = original;
+          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+          app.activeDocument = tempDoc;
           app.refresh();
           app.echoToOE("📸 Exporting frame: " + layer.name);
           tempDoc.saveToOE("png");
