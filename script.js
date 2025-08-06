@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("❌ Button #renameBtn not found.");
     return;
   }
-
+  
   btn.onclick = () => {
     const script = `(function () {
       try {
