@@ -34,8 +34,10 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // 🔁 Select the first frame manually to help initialize Photopea's render state
-        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
+        // ✅ Fix for missing frame: force layer stack refresh
+        original.activeLayer = animGroup.layers[0]; // Select bottom-most
+        app.refresh();
+        original.activeLayer = animGroup.layers[animGroup.layers.length - 1]; // Select top-most
         app.refresh();
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
@@ -53,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
-          app.refresh(); // ⏱️ Trigger visual update before duplicate
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
