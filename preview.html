@@ -1,6 +1,8 @@
+<!-- preview.html -->
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
     html, body {
@@ -9,81 +11,61 @@
       overflow: hidden;
       height: 100%;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      font-family: sans-serif;
-    }
-    #counter {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
+      justify-content: center;
       color: white;
-      border-radius: 4px;
+      font-family: sans-serif;
     }
     canvas {
       image-rendering: pixelated;
+      border: 1px solid #333;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
+  <div>🧠 Frames cached in this tab</div>
   <canvas id="previewCanvas"></canvas>
 
   <script>
+    let cachedImages = [];
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
     const fps = 12;
-    let images = [];
     let index = 0;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images") {
-        const srcList = event.data.images;
-        images = srcList.map(src => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
-      }
-    });
+    const startLoop = () => {
+      if (!cachedImages.length) return;
+      canvas.width = cachedImages[0].width;
+      canvas.height = cachedImages[0].height;
+      setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(cachedImages[index], 0, 0);
+        index = (index + 1) % cachedImages.length;
+      }, 1000 / fps);
+    };
 
-    function preloadAndAnimate(images) {
+    const preloadImages = (srcArray) => {
       let loaded = 0;
-      images.forEach((img, i) => {
+      srcArray.forEach((src, i) => {
+        const img = new Image();
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
-          }
+          if (loaded === srcArray.length) startLoop();
         };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+        img.src = "data:image/png;base64," + src;
+        cachedImages[i] = img;
       });
-    }
+    };
 
-    function startLoop() {
-      if (images.length === 0) return;
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
-        }
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
-    }
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
+        preloadImages(event.data.images);
+        console.log("✅ Received", event.data.images.length, "frames. Cached in memory.");
+      }
+    });
   </script>
 </body>
 </html>
