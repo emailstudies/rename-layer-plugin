@@ -52,12 +52,15 @@ document.addEventListener("DOMContentLoaded", () => {
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
-          app.refresh();
+          app.refresh(); // ⚠️ Ensure the frame is fully rendered
           tempDoc.saveToOE("png");
         }
 
+        // ✅ Clear any visual residual state before closing
         app.activeDocument = tempDoc;
+        app.refresh(); // 🧹 Flush final state to ensure last frame shows
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+
         app.echoToOE("✅ done");
 
       } catch (e) {
