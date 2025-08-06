@@ -14,12 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const script = `(function () {
       try {
         var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
-          return;
-        }
-
-        app.echoToOE("[flipbook] 📄 Document: " + original.name);
+        app.echoToOE("[flipbook] 🔍 Starting flipbook export...");
 
         var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
@@ -35,30 +30,24 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // ✅ Gather only ArtLayer frames
         var frameLayers = [];
         for (var i = 0; i < animGroup.layers.length; i++) {
           var sub = animGroup.layers[i];
-          if (sub.typename === "ArtLayer") {
+          if (sub.visible !== undefined) {
             frameLayers.push(sub);
             app.echoToOE("[flipbook] 🧩 Frame added: " + sub.name);
-          } else {
-            app.echoToOE("[flipbook] ⚠️ Skipped non-ArtLayer: " + sub.name);
           }
         }
 
         if (frameLayers.length === 0) {
-          app.echoToOE("❌ No valid frame layers in 'anim_preview'");
+          app.echoToOE("❌ No visible layers in 'anim_preview'");
           return;
         }
 
-        app.echoToOE("[flipbook] ✅ Total valid frames: " + frameLayers.length);
-
-        // Create export doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
 
-        // Remove default layers
+        // Remove all default layers
         for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
@@ -66,30 +55,34 @@ document.addEventListener("DOMContentLoaded", () => {
         for (var i = 0; i < frameLayers.length; i++) {
           var frameLayer = frameLayers[i];
 
-          // Clean temp
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
+          // Hide all layers in animGroup
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = false;
           }
 
+          frameLayer.visible = true;
+          app.echoToOE("[flipbook] 👁️ Only visible: " + frameLayer.name);
+
+          // Duplicate to tempDoc
           app.activeDocument = original;
-
-          // Hide all layers in animGroup except current
-          for (var k = 0; k < animGroup.layers.length; k++) {
-            animGroup.layers[k].visible = (animGroup.layers[k] === frameLayer);
-          }
-
-          app.echoToOE("[flipbook] 📸 Exporting frame " + (i + 1) + ": " + frameLayer.name);
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
+
+          // Clean all but duplicated
+          for (var j = tempDoc.layers.length - 1; j > 0; j--) {
+            try {
+              app.echoToOE("[flipbook] ❌ Deleting extra: " + tempDoc.layers[j].name);
+              tempDoc.layers[j].remove();
+            } catch (e) {}
+          }
+
+          app.echoToOE("[flipbook] ✅ Final layer in tempDoc: " + tempDoc.layers[0].name);
           app.refresh();
           tempDoc.saveToOE("png");
-
-          app.echoToOE("[flipbook] ✅ Frame exported: " + frameLayer.name);
+          app.echoToOE("[flipbook] 📸 Exported frame: " + frameLayer.name);
         }
 
-        app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
 
@@ -99,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent tempDoc export script to Photopea");
+    console.log("[flipbook] 📤 Sent refined script to Photopea");
   };
 
   window.addEventListener("message", (event) => {
