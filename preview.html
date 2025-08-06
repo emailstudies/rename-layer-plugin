@@ -5,12 +5,13 @@
   <style>
     html, body {
       margin: 0;
-      background: #fff;
+      background: #111;
       overflow: hidden;
       height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
+      font-family: sans-serif;
     }
     #counter {
       position: absolute;
@@ -20,7 +21,6 @@
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
-      font-family: sans-serif;
     }
     canvas {
       image-rendering: pixelated;
@@ -56,11 +56,14 @@
       images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
+          console.log(`✅ Loaded image ${i + 1}`);
           if (loaded === images.length) {
             startLoop();
           }
         };
-        img.onerror = () => console.warn(`❌ Failed to load image ${i + 1}`);
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
+        };
       });
     }
 
@@ -71,7 +74,7 @@
 
       setInterval(() => {
         const img = images[index];
-        if (img.complete && img.naturalWidth > 0) {
+        if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
