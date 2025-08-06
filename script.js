@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side — Clean tempDoc before duplication, fix repeated frame issue)
+// flipbook_export.js (Plugin-side — Insert transparent frame at start and clean up after export)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -29,6 +29,13 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Add a blank transparent frame at the top
+        var placeholder = app.activeDocument.artLayers.add();
+        placeholder.name = "__temp_blank_frame__";
+        placeholder.opacity = 0;
+        placeholder.move(animFolder, ElementPlacement.PLACEATBEGINNING);
+        app.echoToOE("➕ Inserted blank frame");
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = 0; i < animFolder.layers.length; i++) {
@@ -52,6 +59,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+
+        // Remove the placeholder layer from anim_preview
+        app.activeDocument = original;
+        for (var i = 0; i < animFolder.layers.length; i++) {
+          if (animFolder.layers[i].name === "__temp_blank_frame__") {
+            animFolder.layers[i].remove();
+            app.echoToOE("🧹 Removed temp blank frame");
+            break;
+          }
+        }
+
         app.echoToOE("✅ done");
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
