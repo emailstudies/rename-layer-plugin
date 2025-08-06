@@ -1,6 +1,6 @@
 // flipbook_export.js (Plugin-side — Clean tempDoc before duplication, fix repeated frame issue)
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("rename Btn");
+  const btn = document.getElementById("renameBtn");
 
   if (!btn) {
     console.error("❌ Button not found");
