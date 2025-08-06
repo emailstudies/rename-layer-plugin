@@ -35,28 +35,38 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        if (animGroup.layers.length === 0) {
-          app.echoToOE("❌ 'anim_preview' folder is empty.");
+        // ✅ Gather only ArtLayer frames
+        var frameLayers = [];
+        for (var i = 0; i < animGroup.layers.length; i++) {
+          var sub = animGroup.layers[i];
+          if (sub.typename === "ArtLayer") {
+            frameLayers.push(sub);
+            app.echoToOE("[flipbook] 🧩 Frame added: " + sub.name);
+          } else {
+            app.echoToOE("[flipbook] ⚠️ Skipped non-ArtLayer: " + sub.name);
+          }
+        }
+
+        if (frameLayers.length === 0) {
+          app.echoToOE("❌ No valid frame layers in 'anim_preview'");
           return;
         }
 
-        app.echoToOE("[flipbook] ✅ Found 'anim_preview' with " + animGroup.layers.length + " frame(s)");
+        app.echoToOE("[flipbook] ✅ Total valid frames: " + frameLayers.length);
 
-        // Create new blank export doc
+        // Create export doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
 
-        // Remove all default layers in the new doc
+        // Remove default layers
         for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
           try { tempDoc.layers[j].remove(); } catch (e) {}
         }
 
-        // Export each frame one-by-one
-        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
-          var frameLayer = animGroup.layers[i];
-          if (!frameLayer || frameLayer.typename !== "ArtLayer") continue;
+        for (var i = 0; i < frameLayers.length; i++) {
+          var frameLayer = frameLayers[i];
 
-          // 🧼 Clean temp doc layers
+          // Clean temp
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
@@ -64,20 +74,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
           app.activeDocument = original;
 
-          // 🔒 Show only the current frame layer
+          // Hide all layers in animGroup except current
           for (var k = 0; k < animGroup.layers.length; k++) {
-            animGroup.layers[k].visible = (k === i);
+            animGroup.layers[k].visible = (animGroup.layers[k] === frameLayer);
           }
 
-          original.activeLayer = frameLayer;
+          app.echoToOE("[flipbook] 📸 Exporting frame " + (i + 1) + ": " + frameLayer.name);
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
           app.refresh();
-
-          app.echoToOE("[flipbook] ✅ Ready to export: " + frameLayer.name);
           tempDoc.saveToOE("png");
-          app.echoToOE("[flipbook] 🖼 Exported: " + frameLayer.name);
+
+          app.echoToOE("[flipbook] ✅ Frame exported: " + frameLayer.name);
         }
 
         app.activeDocument = tempDoc;
