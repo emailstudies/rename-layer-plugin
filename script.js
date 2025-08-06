@@ -29,11 +29,20 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Create dummy transparent layer and move to bottom
+        app.activeDocument = original;
+        var dummyLayer = original.artLayers.add();
+        dummyLayer.name = "dummy";
+        dummyLayer.opacity = 0;
+        dummyLayer.visible = false;
+        dummyLayer.move(animFolder.layers[animFolder.layers.length - 1], ElementPlacement.PLACEAFTER);
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = 0; i < animFolder.layers.length; i++) {
           var layer = animFolder.layers[i];
           if (layer.name === "Background" && layer.locked) continue;
+          if (layer.name === "dummy") continue;
 
           // Clear tempDoc
           app.activeDocument = tempDoc;
@@ -43,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Duplicate with visibility fix
           app.activeDocument = original;
-          original.activeLayer = layer; // ✅ Explicitly select the layer
+          original.activeLayer = layer;
           var wasVisible = layer.visible;
           layer.visible = true;
           var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
@@ -54,6 +63,15 @@ document.addEventListener("DOMContentLoaded", () => {
           app.refresh();
           app.echoToOE("📸 Exported frame: " + layer.name);
           tempDoc.saveToOE("png");
+        }
+
+        // Remove dummy layer
+        app.activeDocument = original;
+        for (var i = 0; i < animFolder.layers.length; i++) {
+          if (animFolder.layers[i].name === "dummy") {
+            animFolder.layers[i].remove();
+            break;
+          }
         }
 
         // Cleanup
