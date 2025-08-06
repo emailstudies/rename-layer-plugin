@@ -1,4 +1,4 @@
-// flipbook_export.js (Plugin-side)
+// flipbook_export.js (Plugin-side with sync per-frame export)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -7,15 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  btn.onclick = () => {
+  let frameLayers = [];
+  let frameIndex = 0;
+  let collectedFrames = [];
+
+  function sendNextFrame() {
     const script = `(function () {
       try {
         var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
-          return;
-        }
-
         var animFolder = null;
         for (var i = 0; i < original.layers.length; i++) {
           if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
@@ -23,51 +22,68 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
           }
         }
-
         if (!animFolder) {
           alert("❌ 'anim_preview' folder not found.");
           return;
         }
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        if (!app._tempExportDoc) {
+          app._tempExportDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        }
 
-        for (var i = 0; i < animFolder.layers.length; i++) {
-          var layer = animFolder.layers[i];
+        var tempDoc = app._tempExportDoc;
+        var layers = animFolder.layers;
+        var layer = layers[${frameIndex}];
 
-          if (layer.name === "Background" && layer.locked) continue;
-
+        if (!layer) {
           app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
+          tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+          delete app._tempExportDoc;
+          app.echoToOE("✅ done");
+          return;
+        }
 
-          app.activeDocument = original;
-          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-
-          app.activeDocument = tempDoc;
-          app.refresh();
-          tempDoc.saveToOE("png");
+        if (layer.name === "Background" && layer.locked) {
+          app.echoToOE("[next_frame]");
+          return;
         }
 
         app.activeDocument = tempDoc;
-        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.echoToOE("✅ done");
+        for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+          try { tempDoc.layers[j].remove(); } catch (e) {}
+        }
+
+        app.activeDocument = original;
+        var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+
+        app.activeDocument = tempDoc;
+        app.refresh();
+        tempDoc.saveToOE("png");
+        app.echoToOE("[next_frame]");
+
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent export script to Photopea");
-  };
+  }
 
-  const collectedFrames = [];
+  btn.onclick = () => {
+    frameIndex = 0;
+    collectedFrames = [];
+    sendNextFrame();
+  };
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      if (event.data === "✅ done") {
+      if (event.data === "[next_frame]") {
+        frameIndex++;
+        sendNextFrame();
+
+      } else if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
           console.log("❌ No frames received.");
           return;
@@ -84,6 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         collectedFrames.length = 0;
+
       } else if (event.data.startsWith("❌")) {
         console.log("⚠️ Photopea reported:", event.data);
       }
