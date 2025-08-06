@@ -1,4 +1,3 @@
-// flipbook_export.js (Plugin-side)
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
@@ -29,38 +28,32 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        if (animFolder.layers.length === 0) {
-          alert("❌ 'anim_preview' has no layers.");
-          return;
-        }
-
-        var lastIndex = animFolder.layers.length - 1;
-        var lastLayer = animFolder.layers[lastIndex];
-        if (!lastLayer) {
-          alert("❌ Last frame not found.");
-          return;
-        }
-
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
-        // Clear default background from tempDoc
-        app.activeDocument = tempDoc;
-        for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-          try { tempDoc.layers[j].remove(); } catch (e) {}
+        // Iterate from bottom (UI top layer) to top (UI bottom layer)
+        for (var i = animFolder.layers.length - 1; i >= 0; i--) {
+          var layer = animFolder.layers[i];
+          if (layer.name === "Background" && layer.locked) continue;
+
+          // Clear tempDoc
+          app.activeDocument = tempDoc;
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
+
+          // Duplicate with visibility fix
+          app.activeDocument = original;
+          var wasVisible = layer.visible;
+          layer.visible = true;
+          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          layer.visible = wasVisible;
+
+          // Export frame
+          app.activeDocument = tempDoc;
+          app.refresh();
+          app.echoToOE("📸 Exported frame: " + layer.name);
+          tempDoc.saveToOE("png");
         }
-
-        // Duplicate last layer into tempDoc
-        app.activeDocument = original;
-        var wasVisible = lastLayer.visible;
-        lastLayer.visible = true;
-        var dup = lastLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-        lastLayer.visible = wasVisible;
-
-        // Export PNG
-        app.activeDocument = tempDoc;
-        app.refresh();
-        app.echoToOE("📸 Exported ONLY last frame: " + lastLayer.name);
-        tempDoc.saveToOE("png");
 
         // Cleanup
         app.activeDocument = tempDoc;
@@ -73,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent last-frame export script to Photopea");
+    console.log("📤 Sent export script to Photopea");
   };
 
   const collectedFrames = [];
@@ -84,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (typeof event.data === "string") {
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
-          console.log("❌ No frame received.");
+          console.log("❌ No frames received.");
           return;
         }
 
@@ -93,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return btoa(binary);
         });
 
+        // ✅ framesBase64 already in UI order (top → bottom)
         const previewWindow = window.open("preview.html");
         previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
