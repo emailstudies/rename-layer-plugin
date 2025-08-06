@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-  
+
   if (!btn) {
     console.error("❌ Button not found");
     return;
@@ -24,14 +24,15 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup || animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is missing or empty.");
+        if (!animGroup) {
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
-        // Select the last (bottommost) frame to avoid context issues
-        original.activeLayer = animGroup.layers[animGroup.layers.length - 1];
-        app.refresh();
+        if (animGroup.layers.length === 0) {
+          alert("❌ 'anim_preview' folder is empty.");
+          return;
+        }
 
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
@@ -39,29 +40,22 @@ document.addEventListener("DOMContentLoaded", () => {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-          // Clear temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
 
-          // Switch to original and show only current frame
           app.activeDocument = original;
-          for (var k = 0; k < animGroup.layers.length; k++) {
-            animGroup.layers[k].visible = false;
-          }
-
+          animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // Export frame
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
         }
 
-        // Cleanup
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
         app.echoToOE("✅ done");
@@ -97,24 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
-        if (!previewWindow) {
-          alert("❌ Could not open preview window. Please allow popups.");
-          return;
-        }
 
-        const sendImages = () => {
-          try {
-            previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-          } catch (err) {
-            console.error("❌ Failed to send frames:", err);
-          }
+        previewWindow.onload = () => {
+          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
         };
-
-        if (previewWindow.document?.readyState === "complete") {
-          sendImages();
-        } else {
-          previewWindow.onload = sendImages;
-        }
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
