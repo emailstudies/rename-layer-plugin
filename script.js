@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button #renameBtn not found");
+    console.error("❌ Button not found");
     return;
   }
 
@@ -25,52 +25,55 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup || animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is missing or empty.");
+          alert("❌ 'anim_preview' folder missing or empty.");
           return;
         }
 
-        app.echoToOE("🔧 Starting export of " + animGroup.layers.length + " frames...");
+        app.echoToOE("🔧 Exporting " + animGroup.layers.length + " frame(s)...");
 
-        var tempDoc = app.documents.add(
-          original.width,
-          original.height,
-          original.resolution,
-          "_temp_export",
-          NewDocumentMode.RGB
-        );
+        // Create temp doc with transparency
+        var desc = new ActionDescriptor();
+        desc.putUnitDouble(charIDToTypeID("Wdth"), charIDToTypeID("#Pxl"), original.width);
+        desc.putUnitDouble(charIDToTypeID("Hght"), charIDToTypeID("#Pxl"), original.height);
+        desc.putUnitDouble(charIDToTypeID("Rslt"), charIDToTypeID("#Rsl"), original.resolution);
+        desc.putClass(charIDToTypeID("Md  "), charIDToTypeID("RGBM"));
+        desc.putBoolean(stringIDToTypeID("fillTransparent"), true);
+        desc.putString(charIDToTypeID("Nm  "), "_temp_export");
+        executeAction(charIDToTypeID("Mk  "), desc, DialogModes.NO);
+        var tempDoc = app.activeDocument;
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-          app.echoToOE("🎞️ Frame " + (animGroup.layers.length - i) + ": Preparing '" + frameLayer.name + "'");
+          app.echoToOE("🎞️ Frame " + (animGroup.layers.length - i) + ": " + frameLayer.name);
 
-          // Hide all first
+          // Hide all layers first
           for (var k = 0; k < animGroup.layers.length; k++) {
             animGroup.layers[k].visible = false;
           }
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
 
-          app.echoToOE("👁️ Only '" + frameLayer.name + "' is now visible");
+          app.echoToOE("👁️ Showing only: " + frameLayer.name);
 
           // Clear temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try { tempDoc.layers[j].remove(); } catch (e) {}
           }
-          app.echoToOE("🧹 Temp document cleaned");
+          app.echoToOE("🧹 Cleared temp doc");
 
-          // Duplicate to temp
+          // Duplicate frame into temp doc
           app.activeDocument = original;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          app.echoToOE("📋 Duplicated '" + frameLayer.name + "' into temp doc");
+          app.echoToOE("📋 Duplicated: " + frameLayer.name);
 
           // Export
           app.activeDocument = tempDoc;
           app.refresh();
           tempDoc.saveToOE("png");
-          app.echoToOE("💾 Exported '" + frameLayer.name + "' as PNG");
+          app.echoToOE("💾 Exported PNG for: " + frameLayer.name);
         }
 
         app.activeDocument = tempDoc;
@@ -108,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewWindow = window.open("preview.html");
-
         if (!previewWindow) {
           alert("❌ Could not open preview window. Please allow popups.");
           return;
@@ -122,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         };
 
-        if (previewWindow.document && previewWindow.document.readyState === "complete") {
+        if (previewWindow.document?.readyState === "complete") {
           sendImages();
         } else {
           previewWindow.onload = sendImages;
