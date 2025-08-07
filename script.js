@@ -1,9 +1,14 @@
-let shouldStop = false;
+let stopFlag = false;
 
 function toggleUI(isPlaying) {
-  document.getElementById("newName").style.display = isPlaying ? "none" : "inline";
-  document.getElementById("renameBtn").style.display = isPlaying ? "none" : "inline";
-  document.getElementById("stopBtn").style.display = isPlaying ? "inline" : "none";
+  const controls = document.getElementById("controls");
+  if (isPlaying) {
+    controls.classList.add("compact");
+    document.getElementById("stopBtn").style.display = "inline";
+  } else {
+    controls.classList.remove("compact");
+    document.getElementById("stopBtn").style.display = "none";
+  }
 }
 
 function showOnlyFrame(index) {
@@ -83,31 +88,33 @@ function cycleFrames(total, delay = 300) {
   let i = total - 1;
 
   function next() {
-    if (shouldStop) {
+    if (stopFlag) {
+      console.log("⏹️ Animation stopped.");
       toggleUI(false);
       return;
     }
+
     showOnlyFrame(i);
     i--;
-    if (i < 0) i = total - 1;
+    if (i < 0) i = total - 1; // loop
+
     setTimeout(next, delay);
   }
 
   next();
 }
 
-// ▶️ Play button
 document.getElementById("renameBtn").onclick = () => {
-  shouldStop = false;
-  toggleUI(true);
-
   let fps = parseFloat(document.getElementById("newName").value);
   if (isNaN(fps) || fps <= 0) {
     fps = 3;
   }
   const delay = 1000 / fps;
+  stopFlag = false;
 
   console.log("🎞️ Using FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
+
+  toggleUI(true);
 
   getFrameCount((frameCount) => {
     if (frameCount > 0) {
@@ -119,8 +126,6 @@ document.getElementById("renameBtn").onclick = () => {
   });
 };
 
-// ⏹️ Stop button
 document.getElementById("stopBtn").onclick = () => {
-  shouldStop = true;
-  toggleUI(false);
+  stopFlag = true;
 };
