@@ -2,16 +2,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button not found");
+    console.error("❌ Button #renameBtn not found");
     return;
-  }  
+  }
+
+  const collectedFrames = [];
+  let imageDataURLs = [];
+  let previewWindow = null;
 
   btn.onclick = () => {
+    // ✅ Open preview window *before* sending script
+    previewWindow = window.open("preview.html");
+
+    if (!previewWindow) {
+      alert("❌ Could not open preview window. Please allow popups.");
+      return;
+    }
+
+    collectedFrames.length = 0;
+
     const script = `(function () {
       try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
-          alert("❌ No valid layers found.");
+          app.echoToOE("❌ No valid layers found.");
           return;
         }
 
@@ -25,12 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup) {
-          alert("❌ Folder 'anim_preview' not found.");
+          app.echoToOE("❌ Folder 'anim_preview' not found.");
           return;
         }
 
         if (animGroup.layers.length === 0) {
-          alert("❌ 'anim_preview' folder is empty.");
+          app.echoToOE("❌ 'anim_preview' folder is empty.");
           return;
         }
 
@@ -69,10 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[flipbook] 📤 Sent export script to Photopea");
   };
 
-  const collectedFrames = [];
-  let imageDataURLs = [];
-  let previewWindow = null;
-
+  // ✅ Listener to receive frame PNGs and trigger preview
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
@@ -90,15 +101,13 @@ document.addEventListener("DOMContentLoaded", () => {
           return "data:image/png;base64," + btoa(binary);
         });
 
-        previewWindow = window.open("preview.html");
-
-        previewWindow.onload = () => {
+        if (previewWindow && previewWindow.postMessage) {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        };
+        }
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
-        console.log("[flipbook] ⚠️ Error:", event.data);
+        console.warn("[flipbook] ⚠️ Error:", event.data);
       }
     }
   });
