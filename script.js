@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!btn) {
     console.error("❌ Button #renameBtn not found");
     return;
-  }
+  } 
 
   const collectedFrames = [];
   let imageDataURLs = [];
