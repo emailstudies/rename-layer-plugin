@@ -1,65 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Flipbook Preview</title>
   <style>
     html, body {
       margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
+      background: #111;
       overflow: hidden;
-      background-color: #111;
+      height: 100%;
+      width: 100%;
       font-family: sans-serif;
     }
 
-    /* Fixed UI toolbar */
-    #toolbar {
+    #counter {
       position: fixed;
-      top: 12px;
-      left: 12px;
+      top: 10px;
+      left: 10px;
       background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
       color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
+      border-radius: 4px;
+      z-index: 10;
       font-size: 16px;
-      z-index: 1000;
-      pointer-events: none;
     }
 
-    /* Canvas container centered */
-    #canvasWrapper {
-      width: 100%;
-      height: 100%;
+    #wrapper {
+      width: 100vw;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
     }
 
-    /* Scaled canvas container */
     #canvasScaler {
       transform-origin: top left;
     }
 
     canvas {
       display: block;
-      image-rendering: pixelated;
       background: white;
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <!-- Fixed UI toolbar -->
-  <div id="toolbar">
-    Frame: <span id="counter">0</span>
-  </div>
-
-  <!-- Centered canvas wrapper -->
-  <div id="canvasWrapper">
+  <div id="counter">Frame: 0</div>
+  <div id="wrapper">
     <div id="canvasScaler">
-      <canvas id="previewCanvas" width="512" height="512"></canvas>
+      <canvas id="previewCanvas"></canvas>
     </div>
   </div>
 
@@ -67,42 +55,68 @@
     const canvas = document.getElementById("previewCanvas");
     const scaler = document.getElementById("canvasScaler");
     const ctx = canvas.getContext("2d");
-    const counterEl = document.getElementById("counter");
+    const counter = document.getElementById("counter");
+    const fps = 12;
+    let images = [];
+    let index = 0;
 
-    const originalWidth = canvas.width;
-    const originalHeight = canvas.height;
-    let currentFrame = 0;
-    let frames = [];
-
-    function resizeCanvas() {
+    function fitCanvasToViewport(width, height) {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const scale = Math.min(vw / originalWidth, vh / originalHeight);
+      const scale = Math.min(vw / width, vh / height);
       scaler.style.transform = `scale(${scale})`;
     }
 
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    window.addEventListener("message", (e) => {
-      if (e.data.type === "frame") {
-        const blob = new Blob([e.data.buffer]);
-        const img = new Image();
-        img.onload = () => {
-          frames.push(img);
-          if (frames.length === 1) renderFrame(0);
-        };
-        img.src = URL.createObjectURL(blob);
-      } else if (e.data.type === "showFrame") {
-        renderFrame(e.data.index);
+    window.addEventListener("resize", () => {
+      if (images[0]) {
+        fitCanvasToViewport(images[0].width, images[0].height);
       }
     });
 
-    function renderFrame(index) {
-      currentFrame = index;
-      counterEl.textContent = `${index + 1}`;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(frames[index], 0, 0);
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
+        const srcList = event.data.images;
+        images = srcList.map((src) => {
+          const img = new Image();
+          img.src = src;
+          return img;
+        });
+        preloadAndAnimate(images);
+      }
+    });
+
+    function preloadAndAnimate(images) {
+      let loaded = 0;
+      images.forEach((img, i) => {
+        img.onload = () => {
+          loaded++;
+          console.log(`✅ Loaded image ${i + 1}`);
+          if (loaded === images.length) {
+            canvas.width = images[0].width;
+            canvas.height = images[0].height;
+            fitCanvasToViewport(canvas.width, canvas.height);
+            startLoop();
+          }
+        };
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
+        };
+      });
+    }
+
+    function startLoop() {
+      if (images.length === 0) return;
+      setInterval(() => {
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
     }
   </script>
 </body>
