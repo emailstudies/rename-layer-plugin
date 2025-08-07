@@ -6,8 +6,9 @@
   <style>
     html, body {
       margin: 0;
-      height: 100%;
+      padding: 0;
       width: 100%;
+      height: 100%;
       background: #111;
       font-family: sans-serif;
       overflow: hidden;
@@ -25,27 +26,24 @@
       z-index: 10;
     }
 
-    #container {
-      width: 100vw;
-      height: 100vh;
+    #wrapper {
+      width: 100%;
+      height: 100%;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
     }
 
     canvas {
-      image-rendering: pixelated;
-      background: white;
       display: block;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
+      background: white;
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
-  <div id="container">
+  <div id="wrapper">
     <canvas id="previewCanvas"></canvas>
   </div>
 
@@ -76,8 +74,8 @@
           loaded++;
           console.log(`✅ Loaded image ${i + 1}`);
           if (loaded === images.length) {
+            setupCanvas(images[0]); // Use first image to size canvas
             startLoop();
-            resizeCanvas(); // Initial fit
           }
         };
         img.onerror = () => {
@@ -86,35 +84,22 @@
       });
     }
 
-    function resizeCanvas() {
-      if (!images[0]) return;
+    function setupCanvas(firstImage) {
+      const pixelRatio = window.devicePixelRatio || 1;
+      const width = firstImage.width;
+      const height = firstImage.height;
 
-      const imgW = images[0].naturalWidth;
-      const imgH = images[0].naturalHeight;
-      const aspect = imgW / imgH;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const viewportAspect = vw / vh;
+      // Set render size
+      canvas.width = width;
+      canvas.height = height;
 
-      let newW, newH;
+      // Set CSS size (for display) — optionally scaled up
+      canvas.style.width = (width * 2) + "px";
+      canvas.style.height = (height * 2) + "px";
 
-      if (viewportAspect > aspect) {
-        // Wider screen: fit height
-        newH = vh;
-        newW = vh * aspect;
-      } else {
-        // Taller screen: fit width
-        newW = vw;
-        newH = vw / aspect;
-      }
-
-      canvas.width = imgW;
-      canvas.height = imgH;
-      canvas.style.width = newW + "px";
-      canvas.style.height = newH + "px";
+      console.log(`Canvas render size: ${canvas.width}x${canvas.height}`);
+      console.log(`Canvas CSS size: ${canvas.style.width} x ${canvas.style.height}`);
     }
-
-    window.addEventListener("resize", resizeCanvas);
 
     function startLoop() {
       if (images.length === 0) return;
@@ -125,7 +110,7 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = "#fff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
           counter.textContent = `Frame: ${index + 1}`;
         }
         index = (index + 1) % images.length;
