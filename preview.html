@@ -1,79 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flipbook Preview</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #111;
+      font-family: sans-serif;
+    }
+
+    /* Fixed UI toolbar */
+    #toolbar {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 16px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    /* Canvas container centered */
+    #canvasWrapper {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Scaled canvas container */
+    #canvasScaler {
+      transform-origin: top left;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      background: white;
+    }
+  </style>
+</head>
 <body>
-  <button id="renameBtn">Launch Preview</button>
+  <!-- Fixed UI toolbar -->
+  <div id="toolbar">
+    Frame: <span id="counter">0</span>
+  </div>
+
+  <!-- Centered canvas wrapper -->
+  <div id="canvasWrapper">
+    <div id="canvasScaler">
+      <canvas id="previewCanvas" width="512" height="512"></canvas>
+    </div>
+  </div>
 
   <script>
-    document.getElementById('renameBtn').onclick = () => {
-      const preview = window.open("", "_blank");
-      preview.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Flipbook Preview</title>
-          <style>
-            html, body {
-              margin: 0; padding: 0;
-              width: 100%; height: 100%;
-              overflow: hidden;
-            }
-            #container {
-              position: fixed;
-              inset: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              background: #111;
-            }
-            iframe {
-              border: none;
-            }
-            #toolbar {
-              position: absolute;
-              top: 10px;
-              left: 10px;
-              background: rgba(0, 0, 0, 0.6);
-              color: white;
-              padding: 6px 12px;
-              border-radius: 4px;
-              font-size: 16px;
-              z-index: 10;
-              pointer-events: none;
-            }
-          </style>
-        </head>
-        <body>
-          <div id="container">
-            <iframe id="previewFrame"></iframe>
-            <div id="toolbar">Frame: <span id="counter">0</span></div>
-          </div>
-          <script>
-            const iframe = document.getElementById('previewFrame');
-            const counter = document.getElementById('counter');
+    const canvas = document.getElementById("previewCanvas");
+    const scaler = document.getElementById("canvasScaler");
+    const ctx = canvas.getContext("2d");
+    const counterEl = document.getElementById("counter");
 
-            window.addEventListener("message", (event) => {
-              if (event.data?.type === 'setup') {
-                const { width, height, fps, images } = event.data;
-                const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
-                iframe.style.width = width + 'px';
-                iframe.style.height = height + 'px';
-                iframe.style.transform = 'scale(' + scale + ')';
-                iframe.style.transformOrigin = 'top left';
+    const originalWidth = canvas.width;
+    const originalHeight = canvas.height;
+    let currentFrame = 0;
+    let frames = [];
 
-                let index = 0;
-                setInterval(() => {
-                  counter.textContent = index + 1;
-                  iframe.contentWindow.postMessage({ type: 'showFrame', index }, '*');
-                  index = (index + 1) % images.length;
-                }, 1000 / fps);
-                iframe.contentWindow.postMessage({ type: 'init', images }, '*');
-              }
-            });
-          </script>
-        </body>
-        </html>
-      `);
-    };
+    function resizeCanvas() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / originalWidth, vh / originalHeight);
+      scaler.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    window.addEventListener("message", (e) => {
+      if (e.data.type === "frame") {
+        const blob = new Blob([e.data.buffer]);
+        const img = new Image();
+        img.onload = () => {
+          frames.push(img);
+          if (frames.length === 1) renderFrame(0);
+        };
+        img.src = URL.createObjectURL(blob);
+      } else if (e.data.type === "showFrame") {
+        renderFrame(e.data.index);
+      }
+    });
+
+    function renderFrame(index) {
+      currentFrame = index;
+      counterEl.textContent = `${index + 1}`;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frames[index], 0, 0);
+    }
   </script>
 </body>
 </html>
