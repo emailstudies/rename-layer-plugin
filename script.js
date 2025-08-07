@@ -1,51 +1,44 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-  if (!btn) return alert("❌ No #renameBtn found");
+  if (!btn) return alert("❌ #renameBtn not found");
 
-  let imageTab = null;
+  let previewTab = null;
 
-  if (window.__saveToOEListener__) {
-    window.removeEventListener("message", window.__saveToOEListener__);
+  // Listen once for the ArrayBuffer from Photopea
+  if (window.__frameListener__) {
+    window.removeEventListener("message", window.__frameListener__);
   }
 
-  const handleImage = (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      const uint8Array = new Uint8Array(event.data);
-      const binary = uint8Array.reduce((data, byte) => data + String.fromCharCode(byte), "");
-      const base64 = btoa(binary);
-      const dataUrl = "data:image/png;base64," + base64;
+  window.__frameListener__ = (event) => {
+    if (!(event.data instanceof ArrayBuffer)) return;
 
-      if (imageTab) {
-        imageTab.document.body.innerHTML = `<img src="${dataUrl}" style="max-width:100%;" />`;
-      }
-    }
+    const binary = String.fromCharCode(...new Uint8Array(event.data));
+    const dataUrl = "data:image/png;base64," + btoa(binary);
+
+    console.log("✅ Got PNG ArrayBuffer, sending to preview.html");
+
+    // Send to preview tab
+    previewTab?.postMessage({
+      type: "images",
+      images: [dataUrl]
+    }, "*");
   };
 
-  window.addEventListener("message", handleImage);
-  window.__saveToOEListener__ = handleImage;
+  window.addEventListener("message", window.__frameListener__);
 
   btn.onclick = () => {
-    imageTab = window.open("", "_blank");
-    if (!imageTab) {
-      alert("❌ Please allow popups for this site");
-      return;
-    }
-    imageTab.document.write("<p>⏳ Waiting for PNG...</p>");
+    previewTab = window.open("preview.html", "previewTab");
 
-    const script = `
-      try {
-        if (!app.activeDocument) {
-          app.echoToOE("❌ No active document.");
-        } else {
-          app.echoToOE("🔄 Calling saveToOE");
-          app.refresh();
-          app.saveToOE("png");
+    const code = `
+      (function () {
+        if (!app.documents.length) {
+          app.echoToOE("❌ No open document");
+          return;
         }
-      } catch (e) {
-        app.echoToOE("❌ ERROR: " + e.message);
-      }
-    `;
-    parent.postMessage(script, "*");
-    console.log("[debug] 📤 Requested saveToOE export");
+        app.echoToOE("📤 Exporting single frame...");
+        app.saveToOE("png");
+      })();`;
+
+    parent.postMessage(code, "*");
   };
 });
