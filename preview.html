@@ -1,50 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Flipbook Preview</title>
+  <title>Flipbook Preview Docked</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      width: 100%;
       height: 100%;
-      background: #111;
-      font-family: sans-serif;
+      width: 100%;
       overflow: hidden;
+      font-family: sans-serif;
+      background: #111;
     }
 
-    #counter {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 16px;
-      z-index: 10;
-    }
-
-    #wrapper {
-      width: 100%;
+    #app-layout {
+      display: flex;
+      flex-direction: column;
       height: 100%;
+    }
+
+    #top-bar {
+      height: 40px;
+      background: #222;
+      color: white;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .content-area {
+      flex: 1;
+      display: flex;
+    }
+
+    #side-bar {
+      width: 200px;
+      background: #333;
+      color: white;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #canvas-wrapper {
+      flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
+      overflow: hidden;
+      background: #111;
+      position: relative;
+    }
+
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
+      z-index: 10;
+      font-size: 14px;
     }
 
     canvas {
+      image-rendering: pixelated;
       display: block;
       background: white;
-      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
-  <div id="wrapper">
-    <canvas id="previewCanvas"></canvas>
+  <div id="app-layout">
+    <div id="top-bar">Top Bar (Toolbar)</div>
+
+    <div class="content-area">
+      <div id="side-bar">Sidebar Panel</div>
+
+      <div id="canvas-wrapper">
+        <div id="counter">Frame: 0</div>
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -74,7 +112,6 @@
           loaded++;
           console.log(`✅ Loaded image ${i + 1}`);
           if (loaded === images.length) {
-            setupCanvas(images[0]); // Use first image to size canvas
             startLoop();
           }
         };
@@ -84,25 +121,12 @@
       });
     }
 
-    function setupCanvas(firstImage) {
-      const pixelRatio = window.devicePixelRatio || 1;
-      const width = firstImage.width;
-      const height = firstImage.height;
-
-      // Set render size
-      canvas.width = width;
-      canvas.height = height;
-
-      // Set CSS size (for display) — optionally scaled up
-      canvas.style.width = (width * 2) + "px";
-      canvas.style.height = (height * 2) + "px";
-
-      console.log(`Canvas render size: ${canvas.width}x${canvas.height}`);
-      console.log(`Canvas CSS size: ${canvas.style.width} x ${canvas.style.height}`);
-    }
-
     function startLoop() {
       if (images.length === 0) return;
+
+      // Set canvas to exact image resolution (no CSS scaling)
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
 
       setInterval(() => {
         const img = images[index];
