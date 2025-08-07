@@ -1,100 +1,115 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      background: #222;
-      color: #fff;
-      font-family: sans-serif;
+      background: #111;
+      overflow: hidden;
+      height: 100%;
       display: flex;
-      flex-direction: column;
+      justify-content: center; 
       align-items: center;
-      justify-content: center;
-      height: 100vh;
+      font-family: sans-serif;
     }
-
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
+    }
     canvas {
-      border: 1px solid #fff;
-      max-width: 90vw;
-      max-height: 90vh;
-      width: auto;
-      height: auto;
-    }
-
-    .controls {
-      margin-top: 1rem;
-    }
-
-    button {
-      padding: 0.5em 1em;
-      margin: 0 0.5em;
-      font-size: 1em;
+      image-rendering: pixelated;
+      display: block;
     }
   </style>
 </head>
 <body>
-  <canvas id="flipCanvas"></canvas>
-  <div class="controls">
-    <button id="prevBtn">⟨ Prev</button>
-    <button id="nextBtn">Next ⟩</button>
-    <span id="frameInfo"></span>
-  </div>
+  <div id="counter">Frame: 0</div>
+  <canvas id="previewCanvas"></canvas>
 
   <script>
-    const canvas = document.getElementById("flipCanvas");
+    const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
-    const frameInfo = document.getElementById("frameInfo");
-    const frames = [];
-    let currentFrame = 0;
-    let canvasSet = false;
+    const counter = document.getElementById("counter");
+    const fps = 12;
+    let images = [];
+    let index = 0;
 
-    window.addEventListener("message", async (event) => {
-      const data = event.data;
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
+        const srcList = event.data.images;
+        const originalWidth = event.data.width;
+        const originalHeight = event.data.height;
 
-      if (data && typeof data === "object") {
-        // Set canvas size if received
-        if (data.type === "[flipbook] canvas_info" && !canvasSet) {
-          canvas.width = data.width;
-          canvas.height = data.height;
-          canvasSet = true;
-          console.log("✅ Canvas size set:", data.width, "x", data.height);
-        }
-
-        // Handle incoming PNG frame
-        if (data instanceof ArrayBuffer) {
-          const blob = new Blob([data], { type: "image/png" });
+        images = srcList.map((src) => {
           const img = new Image();
-          img.src = URL.createObjectURL(blob);
-          await img.decode();
+          img.src = src;
+          return img;
+        });
 
-          frames.push(img);
-          if (frames.length === 1) {
-            drawFrame(0);
-          }
-        }
+        preloadAndAnimate(images, originalWidth, originalHeight);
       }
     });
 
-    function drawFrame(index) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(frames[index], 0, 0);
-      frameInfo.textContent = `Frame ${index + 1} / ${frames.length}`;
+    function preloadAndAnimate(images, originalWidth, originalHeight) {
+      let loaded = 0;
+      images.forEach((img, i) => {
+        img.onload = () => {
+          loaded++;
+          console.log(`✅ Loaded image ${i + 1}`);
+          if (loaded === images.length) {
+            startLoop(originalWidth, originalHeight);
+          }
+        };
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
+        };
+      });
     }
 
-    document.getElementById("nextBtn").onclick = () => {
-      if (frames.length === 0) return;
-      currentFrame = (currentFrame + 1) % frames.length;
-      drawFrame(currentFrame);
-    };
+    function startLoop(originalWidth, originalHeight) {
+      if (images.length === 0) return;
 
-    document.getElementById("prevBtn").onclick = () => {
-      if (frames.length === 0) return;
-      currentFrame = (currentFrame - 1 + frames.length) % frames.length;
-      drawFrame(currentFrame);
-    };
+      function resizeCanvas() {
+        const containerW = window.innerWidth;
+        const containerH = window.innerHeight;
+        const aspect = originalWidth / originalHeight;
+
+        let newWidth = containerW;
+        let newHeight = containerW / aspect;
+
+        if (newHeight > containerH) {
+          newHeight = containerH;
+          newWidth = containerH * aspect;
+        }
+
+        canvas.style.width = `${newWidth}px`;
+        canvas.style.height = `${newHeight}px`;
+
+        canvas.width = originalWidth;
+        canvas.height = originalHeight;
+      }
+
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      setInterval(() => {
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
+    }
   </script>
 </body>
 </html>
