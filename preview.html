@@ -2,45 +2,69 @@
 <html>
 <head>
   <title>Flipbook Preview</title>
+  <meta charset="UTF-8">
   <style>
     html, body {
       margin: 0;
-      background: #111;
-      overflow: hidden;
+      padding: 0;
       height: 100%;
       width: 100%;
+      background: #111;
       font-family: sans-serif;
+      overflow: hidden;
       position: relative;
     }
 
-    #canvasWrapper {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
+    /* 🔧 Toolbar stays fixed and clean */
+    #toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
-    }
-
-    canvas {
-      image-rendering: pixelated;
-      display: block;
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      z-index: 1000;
+      pointer-events: none; /* allows canvas interaction below */
     }
 
     #counter {
-      position: absolute;
-      top: 10px;
-      left: 10px;
       background: rgba(0, 0, 0, 0.6);
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
-      font-size: 16px; /* ✅ Always readable */
-      z-index: 100;
+      font-size: 16px;
+      pointer-events: auto; /* just this if you want interactivity */
+    }
+
+    /* 🖼️ Canvas wrapper ensures centered scaling */
+    #canvasWrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      background: #fff;
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
+
+  <!-- 🔧 UI stays fixed, like Photopea toolbars -->
+  <div id="toolbar">
+    <div id="counter">Frame: 0</div>
+  </div>
+
+  <!-- 🖼️ Canvas centered and scaled -->
   <div id="canvasWrapper">
     <canvas id="previewCanvas"></canvas>
   </div>
@@ -124,5 +148,6 @@
       }, 1000 / fps);
     }
   </script>
+
 </body>
 </html>
