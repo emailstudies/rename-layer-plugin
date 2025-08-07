@@ -18,67 +18,58 @@ document.addEventListener("DOMContentLoaded", () => {
           executeAction(charIDToTypeID('slct'), desc, DialogModes.NO);
         }
 
-        function hideAllLayersInGroup(group) {
-          for (var i = 0; i < group.layers.length; i++) {
-            group.layers[i].visible = false;
-          }
-        }
-
-        var original = app.activeDocument;
+        var doc = app.activeDocument;
         var animGroup = null;
 
-        for (var i = 0; i < original.layers.length; i++) {
-          if (original.layers[i].typename === "LayerSet" && original.layers[i].name === "anim_preview") {
-            animGroup = original.layers[i];
+        for (var i = 0; i < doc.layers.length; i++) {
+          if (doc.layers[i].typename === "LayerSet" && doc.layers[i].name === "anim_preview") {
+            animGroup = doc.layers[i];
             break;
           }
         }
 
-        if (!animGroup || animGroup.layers.length < 2) {
-          app.echoToOE("❌ anim_preview not found or has < 2 layers");
+        if (!animGroup || animGroup.layers.length < 1) {
+          app.echoToOE("❌ 'anim_preview' group not found or empty.");
           return;
         }
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        var topLayer = animGroup.layers[animGroup.layers.length - 1];
+        var tempDoc = app.documents.add(doc.width, doc.height, doc.resolution, "_temp_export", NewDocumentMode.RGB);
+
         app.echoToOE("✅ Created temp doc");
 
-        for (var i = animGroup.layers.length - 1; i >= animGroup.layers.length - 2; i--) {
-          var frame = animGroup.layers[i];
-
-          // Hide all, show only current
-          hideAllLayersInGroup(animGroup);
-          frame.visible = true;
-          app.refresh();
-
-          // Select by ID (to avoid DOM crashes)
-          original.activeLayer = frame;
-          var id = frame.id;
-          selectLayerById(id);
-
-          // Duplicate to temp
-          var dupDesc = new ActionDescriptor();
-          var ref = new ActionReference();
-          ref.putIdentifier(charIDToTypeID("Lyr "), id);
-          dupDesc.putReference(charIDToTypeID("null"), ref);
-
-          var destRef = new ActionReference();
-          destRef.putIdentifier(charIDToTypeID("Dcmn"), tempDoc.id);
-          dupDesc.putReference(charIDToTypeID("T   "), destRef);
-          dupDesc.putInteger(charIDToTypeID("Vrsn"), 5);
-          executeAction(charIDToTypeID("Dplc"), dupDesc, DialogModes.NO);
-
-          app.echoToOE("✅ Exported frame: " + frame.name);
+        // Ensure only this layer is visible
+        for (var i = 0; i < animGroup.layers.length; i++) {
+          animGroup.layers[i].visible = false;
         }
+        topLayer.visible = true;
+        app.refresh();
+
+        // Select and duplicate using descriptor
+        doc.activeLayer = topLayer;
+        selectLayerById(topLayer.id);
+
+        var dupDesc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putIdentifier(charIDToTypeID("Lyr "), topLayer.id);
+        dupDesc.putReference(charIDToTypeID("null"), ref);
+
+        var destRef = new ActionReference();
+        destRef.putIdentifier(charIDToTypeID("Dcmn"), tempDoc.id);
+        dupDesc.putReference(charIDToTypeID("T   "), destRef);
+        dupDesc.putInteger(charIDToTypeID("Vrsn"), 5);
+
+        executeAction(charIDToTypeID("Dplc"), dupDesc, DialogModes.NO);
 
         app.activeDocument = tempDoc;
-        app.echoToOE("🧪 Final check: temp doc has " + tempDoc.layers.length + " layers.");
+        app.echoToOE("✅ Duplicated top layer to temp doc. Layers in temp: " + tempDoc.layers.length);
 
       } catch (e) {
-        app.echoToOE("❌ ERROR: " + e.message);
+        app.echoToOE("❌ JS ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 🧪 Sent descriptor-based export script");
+    console.log("[flipbook] 🧪 Sent minimal descriptor export script");
   };
 });
