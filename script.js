@@ -24,28 +24,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ✅ Handle string messages
     if (typeof event.data === "string") {
+      // 👇 Ignore irrelevant JSON garbage
       if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
         return; // ❌ ignore noisy metadata blobs
       }
 
-      if (event.data === "✅ done") {
-        console.log("[flipbook] ✅ All frames received.");
+      if (event.data.startsWith("{")) {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "done") {
+            console.log("[flipbook] ✅ All frames received with dimensions:", msg.width, msg.height);
 
-        if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
-          return;
+            if (collectedFrames.length === 0) {
+              alert("❌ No frames received.");
+              return;
+            }
+
+            imageDataURLs = collectedFrames.map((ab) => {
+              const binary = String.fromCharCode(...new Uint8Array(ab));
+              return "data:image/png;base64," + btoa(binary);
+            });
+
+            if (previewWindow && previewWindow.postMessage) {
+              previewWindow.postMessage({
+                type: "images",
+                images: imageDataURLs,
+                width: msg.width,
+                height: msg.height
+              }, "*");
+            }
+
+            collectedFrames.length = 0;
+          }
+        } catch (e) {
+          console.warn("⚠️ JSON parse error:", e);
         }
-
-        imageDataURLs = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return "data:image/png;base64," + btoa(binary);
-        });
-
-        if (previewWindow && previewWindow.postMessage) {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
-
-        collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
         console.warn("[flipbook] ⚠️", event.data);
       } else {
@@ -95,13 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // ✅ Send canvas dimensions first
-        parent.postMessage({
-          type: "[flipbook] canvas_info",
-          width: original.width,
-          height: original.height
-        }, "*");
-
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
@@ -126,7 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.echoToOE("✅ done");
+        app.echoToOE(JSON.stringify({
+          type: "done",
+          width: original.width,
+          height: original.height
+        }));
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
