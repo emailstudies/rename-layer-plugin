@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btn.onclick = () => {
     const script = `(function () {
-      try {
+      try { 
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
           app.echoToOE("❌ No document or layers.");
