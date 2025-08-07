@@ -7,55 +7,40 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const collectedFrames = [];
-  let imageDataURLs = [];
   let previewWindow = null;
 
-  // ✅ Clear previous listener if reloaded
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
 
   const handleMessage = (event) => {
-    // ✅ Handle binary image data
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
       return;
     }
 
-    // ✅ Handle string messages
     if (typeof event.data === "string") {
-      // 👇 Ignore irrelevant JSON garbage
-      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
-        return; // ❌ ignore noisy metadata blobs
-      }
+      if (event.data.startsWith("{") && event.data.includes("Photopea")) return;
 
       if (event.data === "✅ done") {
-        console.log("[flipbook] ✅ All frames received.");
-
         if (collectedFrames.length === 0) {
           alert("❌ No frames received.");
           return;
         }
 
-        imageDataURLs = collectedFrames.map((ab) => {
+        const imageDataURLs = collectedFrames.map((ab) => {
           const binary = String.fromCharCode(...new Uint8Array(ab));
           return "data:image/png;base64," + btoa(binary);
         });
 
-        if (previewWindow && previewWindow.postMessage) {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
-
+        previewWindow?.postMessage({ type: "images", images: imageDataURLs }, "*");
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.warn("[flipbook] ⚠️", event.data);
       } else {
-        console.log("[flipbook] ℹ️ Message:", event.data);
+        console.log("[flipbook] Message:", event.data);
       }
     }
   };
 
-  // ✅ Attach clean listener
   window.addEventListener("message", handleMessage);
   window.__flipbookMessageListener__ = handleMessage;
 
@@ -96,6 +81,15 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // ✅ Send width and height before starting export
+        var payload = {
+          type: "canvasSize",
+          width: original.width,
+          height: original.height
+        };
+        app.sendToOE(JSON.stringify(payload));
+
+        // 🔁 Export each frame to OE
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
@@ -103,8 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
           app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
+          while (tempDoc.layers.length > 0) {
+            try { tempDoc.layers[0].remove(); } catch (e) {}
           }
 
           app.activeDocument = original;
@@ -128,6 +122,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent export script to Photopea");
+    console.log("[flipbook] 📤 Export script sent to Photopea");
   };
 });
