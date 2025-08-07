@@ -1,70 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
-  <meta charset="UTF-8">
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      height: 100%;
       width: 100%;
+      height: 100%;
+      overflow: hidden;
       background: #111;
       font-family: sans-serif;
-      overflow: hidden;
-      position: relative;
     }
 
-    /* 🔧 Toolbar stays fixed and unaffected by canvas scale */
-    #toolbar {
+    /* Fixed UI (e.g. counter) not affected by canvas scaling */
+    #ui {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      padding: 8px;
-      z-index: 1000;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 16px;
       pointer-events: none;
     }
 
-    #counter {
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
-      color: white;
-      border-radius: 4px;
-      font-size: 16px;
-      pointer-events: auto;
-    }
-
-    /* Canvas wrapper and transform scaling */
+    /* Canvas wrapper centers canvas, canvas is scaled inside */
     #canvasWrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
       display: flex;
-      justify-content: center;
       align-items: center;
-      overflow: hidden;
+      justify-content: center;
     }
 
-    #previewCanvas {
-      display: block;
-      background: #fff;
+    canvas {
+      background: white;
       image-rendering: pixelated;
+      display: block;
+      transform-origin: top left;
     }
   </style>
 </head>
 <body>
 
-  <!-- 🔧 Fixed toolbar -->
-  <div id="toolbar">
-    <div id="counter">Frame: 0</div>
+  <!-- Toolbar UI -->
+  <div id="ui">
+    Frame: <span id="counter">0</span>
   </div>
 
-  <!-- 🖼️ Canvas container -->
+  <!-- Canvas container -->
   <div id="canvasWrapper">
     <canvas id="previewCanvas"></canvas>
   </div>
@@ -73,9 +61,9 @@
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
-    const fps = 12;
     let images = [];
     let index = 0;
+    const fps = 12;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images" && Array.isArray(event.data.images)) {
@@ -83,7 +71,7 @@
         const originalWidth = event.data.width;
         const originalHeight = event.data.height;
 
-        images = srcList.map((src) => {
+        images = srcList.map(src => {
           const img = new Image();
           img.src = src;
           return img;
@@ -95,40 +83,31 @@
 
     function preloadAndAnimate(images, originalWidth, originalHeight) {
       let loaded = 0;
-      images.forEach((img, i) => {
+      images.forEach((img) => {
         img.onload = () => {
           loaded++;
           if (loaded === images.length) {
             startLoop(originalWidth, originalHeight);
           }
         };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+        img.onerror = () => console.warn("Image failed to load");
       });
     }
 
     function startLoop(originalWidth, originalHeight) {
-      if (images.length === 0) return;
+      canvas.width = originalWidth;
+      canvas.height = originalHeight;
 
       function resizeCanvas() {
-        const containerW = window.innerWidth;
-        const containerH = window.innerHeight;
-        const aspect = originalWidth / originalHeight;
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight;
+        let scale = containerWidth / originalWidth;
 
-        // Base canvas size
-        canvas.width = originalWidth;
-        canvas.height = originalHeight;
-
-        // Compute scale
-        let scale = containerW / originalWidth;
-        if (originalHeight * scale > containerH) {
-          scale = containerH / originalHeight;
+        if (originalHeight * scale > containerHeight) {
+          scale = containerHeight / originalHeight;
         }
 
-        // Apply CSS transform (does NOT affect browser zoom)
         canvas.style.transform = `scale(${scale})`;
-        canvas.style.transformOrigin = "top left";
       }
 
       resizeCanvas();
@@ -136,12 +115,12 @@
 
       setInterval(() => {
         const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
+        if (img && img.complete) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = "#fff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
+          counter.textContent = index + 1;
         }
         index = (index + 1) % images.length;
       }, 1000 / fps);
