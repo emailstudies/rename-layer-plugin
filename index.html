@@ -2,17 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Rename Layer</title>
+  <title>Flipbook Preview</title>
   <style>
     body {
       font-family: sans-serif;
       padding: 20px;
     }
 
+    #controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 300px;
+    }
+
     input, button {
       padding: 10px;
       font-size: 16px;
-      margin-top: 10px;
       width: 100%;
       box-sizing: border-box;
     }
@@ -27,17 +33,27 @@
     button:hover {
       background-color: #388E3C;
     }
+
+    #stopBtn {
+      display: none;
+      background-color: #f44336;
+    }
+
+    #stopBtn:hover {
+      background-color: #d32f2f;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Rename Selected Layer</h2>
-  <input id="newName" type="number" placeholder="FPS (frames per second)" value="12" min="1" />
-  <button id="renameBtn">Rename</button>
-  <button id="stopBtn">Stop</button>
+  <h2>Flipbook Preview Controls</h2>
+
+  <div id="controls">
+    <input id="newName" type="text" placeholder="Enter FPS (e.g. 3)" />
+    <button id="renameBtn">Play</button>
+    <button id="stopBtn">Stop</button>
+  </div>
 
   <script src="script.js"></script>
-  
 </body>
 </html>
-
