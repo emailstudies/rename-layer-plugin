@@ -57,6 +57,9 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       frameInfo.textContent = `Frame: ${i + 1} / ${images.length}`;
+
+      // Send "✅ next" after showing each frame
+      window.opener?.postMessage("✅ next", "*");
     }
 
     nextBtn.onclick = () => {
@@ -79,12 +82,15 @@
             loaded++;
             if (loaded === images.length) {
               index = 0;
-              showFrame(index);
+              showFrame(index); // will also send ✅ next
             }
           };
         });
       }
     });
+
+    // Start export on load
+    window.opener?.postMessage("✅ next", "*");
   </script>
 </body>
 </html>
