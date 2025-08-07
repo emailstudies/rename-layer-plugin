@@ -1,66 +1,26 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
+  const renameBtn = document.getElementById("renameBtn");
+  const previewWindow = window.open("preview.html");
 
-  if (!btn) {
-    console.error("❌ Button #renameBtn not found");
+  if (!renameBtn || !previewWindow) {
+    console.error("❌ Button or preview window missing.");
     return;
   }
 
   const collectedFrames = [];
-  let imageDataURLs = [];
-  let previewWindow = null;
 
-  // ✅ Clear previous listener
-  if (window.__flipbookMessageListener__) {
-    window.removeEventListener("message", window.__flipbookMessageListener__);
-  }
-
-  const handleMessage = (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      collectedFrames.push(event.data);
-      return;
+  window.addEventListener("message", (event) => {
+    if (typeof event.data === "string" && event.data === "done") {
+      console.log("[flipbook] ✅ All frames received.");
+      previewWindow.postMessage({ type: "frames", images: collectedFrames }, "*");
+    } else if (event.data instanceof ArrayBuffer) {
+      const blob = new Blob([event.data], { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+      collectedFrames.push(url);
     }
+  });
 
-    if (typeof event.data === "string") {
-      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) return;
-
-      if (event.data === "✅ done") {
-        console.log("[flipbook] ✅ All frames received.");
-
-        if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
-          return;
-        }
-
-        imageDataURLs = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return "data:image/png;base64," + btoa(binary);
-        });
-
-        if (previewWindow && previewWindow.postMessage) {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
-
-        collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.warn("[flipbook] ⚠️", event.data);
-      } else {
-        console.log("[flipbook] ℹ️ Message:", event.data);
-      }
-    }
-  };
-
-  window.addEventListener("message", handleMessage);
-  window.__flipbookMessageListener__ = handleMessage;
-
-  btn.onclick = () => {
-    previewWindow = window.open("preview.html");
-
-    if (!previewWindow) {
-      alert("❌ Could not open preview window. Please allow popups.");
-      return;
-    }
-
+  renameBtn.onclick = () => {
     collectedFrames.length = 0;
 
     const script = `(function () {
@@ -90,28 +50,27 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
+          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
-          // Hide all before showing current
-          for (var j = 0; j < animGroup.layers.length; j++) {
-            animGroup.layers[j].visible = false;
-          }
-
-          frameLayer.visible = true;
-          animGroup.visible = true;
-          app.echoToOE("📤 Sending frame: " + frameLayer.name);
-
-          // Clear temp doc
           app.activeDocument = tempDoc;
           while (tempDoc.layers.length > 0) {
             try { tempDoc.layers[0].remove(); } catch (e) {}
           }
 
           app.activeDocument = original;
+
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = false;
+          }
+
+          frameLayer.visible = true;
+          animGroup.visible = true;
           original.activeLayer = frameLayer;
+
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
@@ -121,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.echoToOE("✅ done");
+        app.echoToOE("done");
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
