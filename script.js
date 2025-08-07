@@ -10,24 +10,19 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageDataURLs = [];
   let previewWindow = null;
 
-  // ✅ Clear previous listener if reloaded
+  // ✅ Clear previous listener
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
 
   const handleMessage = (event) => {
-    // ✅ Handle binary image data
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
       return;
     }
 
-    // ✅ Handle string messages
     if (typeof event.data === "string") {
-      // 👇 Ignore irrelevant JSON garbage
-      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
-        return; // ❌ ignore noisy metadata blobs
-      }
+      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) return;
 
       if (event.data === "✅ done") {
         console.log("[flipbook] ✅ All frames received.");
@@ -55,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // ✅ Attach clean listener
   window.addEventListener("message", handleMessage);
   window.__flipbookMessageListener__ = handleMessage;
 
@@ -100,16 +94,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
-          if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // Hide all before showing current
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = false;
+          }
+
+          frameLayer.visible = true;
+          animGroup.visible = true;
+          app.echoToOE("📤 Sending frame: " + frameLayer.name);
+
+          // Clear temp doc
           app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
+          while (tempDoc.layers.length > 0) {
+            try { tempDoc.layers[0].remove(); } catch (e) {}
           }
 
           app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
           original.activeLayer = frameLayer;
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
