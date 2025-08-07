@@ -20,7 +20,7 @@
       top: 10px;
       left: 10px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       padding: 6px 12px;
       border-radius: 4px;
@@ -28,16 +28,20 @@
       pointer-events: none;
     }
 
-    /* Canvas scaling wrapper */
+    /* Fullscreen centered wrapper */
     #canvasWrapper {
-      width: 100%;
-      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       overflow: hidden;
     }
 
+    /* Canvas scaling container */
     #canvasScaler {
       transform-origin: top left;
     }
@@ -46,19 +50,15 @@
       background: white;
       image-rendering: pixelated;
       display: block;
-      width: auto;
-      height: auto;
     }
   </style>
 </head>
 <body>
 
-  <!-- UI Overlay -->
-  <div id="ui">
-    Frame: <span id="counter">0</span>
-  </div>
+  <!-- Frame counter -->
+  <div id="ui">Frame: <span id="counter">0</span></div>
 
-  <!-- Canvas Display Area -->
+  <!-- Canvas display area -->
   <div id="canvasWrapper">
     <div id="canvasScaler">
       <canvas id="previewCanvas"></canvas>
@@ -67,9 +67,9 @@
 
   <script>
     const canvas = document.getElementById("previewCanvas");
-    const scaler = document.getElementById("canvasScaler");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
+    const scaler = document.getElementById("canvasScaler");
     let images = [];
     let index = 0;
     const fps = 12;
