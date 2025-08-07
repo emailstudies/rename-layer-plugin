@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageDataURLs = [];
   let previewWindow = null;
 
-  // ✅ Clear previous listener if reloaded
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
@@ -22,13 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (typeof event.data === "string") {
-      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
-        return; // ignore JSON noise
-      }
+      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) return;
 
       if (event.data === "✅ done") {
         console.log("[flipbook] ✅ All frames received.");
-
         if (collectedFrames.length === 0) {
           alert("❌ No frames received.");
           return;
@@ -92,7 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // ✅ Transparent temp doc
         var tempDoc = app.documents.add(
           original.width,
           original.height,
@@ -106,13 +101,22 @@ document.addEventListener("DOMContentLoaded", () => {
           var frameLayer = animGroup.layers[i];
           if (frameLayer.name === "Background" && frameLayer.locked) continue;
 
+          // 🔁 Remove all layers from tempDoc
           app.activeDocument = tempDoc;
+          var cleared = 0;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
+            try {
+              tempDoc.layers[j].remove();
+              cleared++;
+            } catch (e) {}
           }
+
+          app.refresh(); // 🟢 AFTER REMOVAL
+          app.echoToOE("🧹 Cleared " + cleared + " layers in temp doc.");
 
           app.activeDocument = original;
 
+          // 🔒 Hide all layers first
           for (var k = 0; k < animGroup.layers.length; k++) {
             animGroup.layers[k].visible = false;
           }
@@ -120,9 +124,25 @@ document.addEventListener("DOMContentLoaded", () => {
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
+
+          app.refresh(); // 🟢 BEFORE DUPLICATION
+
+          // 🔁 Duplicate current frame
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("📸 Exporting frame: " + frameLayer.name);
 
           app.activeDocument = tempDoc;
+
+          // ✅ Confirm only one visible layer in tempDoc
+          var visibleCount = 0;
+          for (var m = 0; m < tempDoc.layers.length; m++) {
+            if (tempDoc.layers[m].visible) visibleCount++;
+          }
+
+          if (visibleCount !== 1) {
+            app.echoToOE("⚠️ Warning: " + visibleCount + " visible layers in tempDoc.");
+          }
+
           app.refresh();
           tempDoc.saveToOE("png");
         }
