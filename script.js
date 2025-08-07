@@ -10,12 +10,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageDataURLs = [];
   let previewWindow = null;
 
-  // ✅ Clear any existing listener first
+  // ✅ Clear old listener
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
 
-  // ✅ Define new listener and store globally
+  // ✅ Handle incoming messages from Photopea
   const handleMessage = (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
@@ -38,26 +38,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         collectedFrames.length = 0;
+
       } else if (event.data.startsWith("❌")) {
-        // ✅ Show alert if Photopea reports error
         alert(event.data);
         console.warn("[flipbook] ⚠️ Error:", event.data);
+        // 🔁 Prevent preview window from opening if error is found
+        if (previewWindow && !previewWindow.closed) {
+          previewWindow.close();
+          previewWindow = null;
+        }
       }
     }
   };
 
-  // ✅ Attach and remember listener
+  // ✅ Register listener
   window.addEventListener("message", handleMessage);
   window.__flipbookMessageListener__ = handleMessage;
 
   btn.onclick = () => {
-    previewWindow = window.open("preview.html");
-
-    if (!previewWindow) {
-      alert("❌ Could not open preview window. Please allow popups.");
-      return;
-    }
-
     collectedFrames.length = 0;
 
     const script = `(function () {
@@ -65,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
           app.echoToOE("❌ No valid layers found.");
+          alert("❌ No valid layers found.");
           return;
         }
 
@@ -79,11 +78,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!animGroup) {
           app.echoToOE("❌ Folder 'anim_preview' not found.");
+          alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
         if (animGroup.layers.length === 0) {
           app.echoToOE("❌ 'anim_preview' folder is empty.");
+          alert("❌ 'anim_preview' folder is empty.");
           return;
         }
 
@@ -105,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
+          app.echoToOE("🖼️ Frame " + (animGroup.layers.length - i) + " exported");
           app.refresh();
           tempDoc.saveToOE("png");
         }
@@ -117,6 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
+
+    // ✅ Only open the preview tab AFTER we validate the structure from the script
+    previewWindow = window.open("about:blank"); // Temporary tab to keep popup behavior working
 
     parent.postMessage(script, "*");
     console.log("[flipbook] 📤 Sent export script to Photopea");
