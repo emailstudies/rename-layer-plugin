@@ -1,44 +1,36 @@
 let interval = null;
+let currentIndex = 0;
+let totalFrames = 0;
 
+// Show one frame in Photopea
 function showOnlyFrame(index) {
   const script = `
     (function () {
       var doc = app.activeDocument;
       var animGroup = null;
-      var bgLayer = null;
-
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
           animGroup = layer;
-        } else if (layer.name.toLowerCase() === "background") {
-          bgLayer = layer;
         } else {
           layer.visible = false;
         }
       }
-
-      if (!animGroup) {
-        app.echoToOE("❌ 'anim_preview' not found.");
-        return;
-      }
+      if (!animGroup) return;
 
       animGroup.visible = true;
-      if (bgLayer) bgLayer.visible = true;
-
       for (var i = 0; i < animGroup.layers.length; i++) {
         animGroup.layers[i].visible = false;
       }
 
       if (${index} < animGroup.layers.length) {
         animGroup.layers[${index}].visible = true;
-        app.echoToOE("👁️ Showing frame ${index}");
       }
     })();`;
-
   parent.postMessage(script, "*");
 }
 
+// Get number of frames in anim_preview
 function getFrameCount(callback) {
   const script = `
     (function () {
@@ -51,82 +43,90 @@ function getFrameCount(callback) {
           break;
         }
       }
-      if (!animGroup) {
-        app.echoToOE("❌ 'anim_preview' not found.");
-      } else {
+      if (animGroup) {
         app.echoToOE("✅ count " + animGroup.layers.length);
+      } else {
+        app.echoToOE("❌ anim_preview not found");
       }
     })();`;
 
-  window.addEventListener("message", function handleCount(event) {
+  function handleCount(event) {
     if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
+      window.removeEventListener("message", handleCount);
       const count = parseInt(event.data.split(" ")[2], 10);
-      if (!isNaN(count)) {
-        window.removeEventListener("message", handleCount);
-        callback(count);
-      }
+      callback(count);
     }
-  });
+  }
 
+  window.addEventListener("message", handleCount);
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay) {
-  let index = 0;
-
-  clearInterval(interval);
+// Start looping animation
+function startPlayback(fps) {
+  const delay = 1000 / fps;
   interval = setInterval(() => {
-    showOnlyFrame(index);
-    index = (index + 1) % total;
+    showOnlyFrame(currentIndex % totalFrames);
+    currentIndex++;
   }, delay);
 }
 
-function stopAnimation() {
+// Stop animation
+function stopPlayback() {
   clearInterval(interval);
-  toggleUI(false);
+  interval = null;
+  currentIndex = 0;
 }
 
-function toggleUI(isPlaying) {
-  const controls = document.getElementById("controls");
-  const stopBtn = document.getElementById("stopBtn");
-  const iframeWrapper = window.frameElement?.parentElement?.parentElement?.parentElement;
-
-  if (isPlaying) {
-    controls.classList.add("compact");
-    stopBtn.style.display = "inline";
-
-    // Resize iframe container
-    if (iframeWrapper) {
-      iframeWrapper.style.width = "100px";
-      iframeWrapper.style.height = "50px";
+// Shrink the iframe panel
+function shrinkIframe() {
+  try {
+    if (window.frameElement) {
+      window.frameElement.style.width = "100px";
+      window.frameElement.style.height = "40px";
     }
-  } else {
-    controls.classList.remove("compact");
-    stopBtn.style.display = "none";
-
-    // Restore iframe container size
-    if (iframeWrapper) {
-      iframeWrapper.style.width = "389px";
-      iframeWrapper.style.height = "310px";
-    }
-  }
+  } catch (e) {}
 }
 
+// Expand the iframe panel
+function expandIframe() {
+  try {
+    if (window.frameElement) {
+      window.frameElement.style.width = "400px";
+      window.frameElement.style.height = "200px";
+    }
+  } catch (e) {}
+}
+
+// DOM
 document.getElementById("renameBtn").onclick = () => {
-  let fps = parseFloat(document.getElementById("newName").value);
-  if (isNaN(fps) || fps <= 0) fps = 3;
-  const delay = 1000 / fps;
+  const fpsInput = parseFloat(document.getElementById("newName").value);
+  const fps = isNaN(fpsInput) || fpsInput <= 0 ? 3 : fpsInput;
 
-  console.log("🎞️ FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
+  getFrameCount((count) => {
+    if (count > 0) {
+      totalFrames = count;
+      currentIndex = 0;
 
-  getFrameCount((frameCount) => {
-    if (frameCount > 0) {
-      toggleUI(true);
-      cycleFrames(frameCount, delay);
-    } else {
-      console.log("No frames found in anim_preview.");
+      // UI switch
+      document.getElementById("mainUI").classList.remove("active");
+      document.getElementById("playbackUI").classList.add("active");
+
+      shrinkIframe();
+      startPlayback(fps);
     }
   });
 };
 
-document.getElementById("stopBtn").onclick = stopAnimation;
+document.getElementById("stopBtn").onclick = () => {
+  stopPlayback();
+  expandIframe();
+
+  document.getElementById("mainUI").classList.add("active");
+  document.getElementById("playbackUI").classList.remove("active");
+};
+
+document.getElementById("nextBtn").onclick = () => {
+  showOnlyFrame(currentIndex % totalFrames);
+  currentIndex++;
+};
