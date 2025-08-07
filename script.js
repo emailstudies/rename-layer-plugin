@@ -16,17 +16,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const handleMessage = (event) => {
-    // ✅ Handle binary image data
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
       return;
     }
 
-    // ✅ Handle string messages
     if (typeof event.data === "string") {
-      // 👇 Ignore irrelevant JSON garbage
       if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
-        return; // ❌ ignore noisy metadata blobs
+        return; // ignore JSON noise
       }
 
       if (event.data === "✅ done") {
@@ -55,7 +52,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // ✅ Attach clean listener
   window.addEventListener("message", handleMessage);
   window.__flipbookMessageListener__ = handleMessage;
 
@@ -96,7 +92,15 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        // ✅ Transparent temp doc
+        var tempDoc = app.documents.add(
+          original.width,
+          original.height,
+          original.resolution,
+          "_temp_export",
+          NewDocumentMode.RGB,
+          DocumentFill.TRANSPARENT
+        );
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
           var frameLayer = animGroup.layers[i];
@@ -108,6 +112,11 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           app.activeDocument = original;
+
+          for (var k = 0; k < animGroup.layers.length; k++) {
+            animGroup.layers[k].visible = false;
+          }
+
           animGroup.visible = true;
           frameLayer.visible = true;
           original.activeLayer = frameLayer;
