@@ -3,13 +3,16 @@ function showOnlyFrame(index) {
     (function () {
       var doc = app.activeDocument;
       var animGroup = null;
+      var bgLayer = null;
 
-      // Find 'anim_preview' group
+      // First, identify background layer by name
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
+        if (layer.name.toLowerCase() === "background") {
+          bgLayer = layer;
+        }
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
           animGroup = layer;
-          break;
         }
       }
 
@@ -18,19 +21,24 @@ function showOnlyFrame(index) {
         return;
       }
 
-      // Hide all layers
+      // Loop through all top-level layers
       for (var i = 0; i < doc.layers.length; i++) {
-        doc.layers[i].visible = false;
+        var layer = doc.layers[i];
+
+        if (layer === bgLayer || layer === animGroup) {
+          layer.visible = true;
+        } else {
+          layer.visible = false;
+        }
       }
 
-      // Hide all inside anim_preview
+      // Hide all children inside anim_preview
       for (var i = 0; i < animGroup.layers.length; i++) {
         animGroup.layers[i].visible = false;
       }
 
-      // Show only the target frame
+      // Show only the target child layer
       if (${index} < animGroup.layers.length) {
-        animGroup.visible = true;
         animGroup.layers[${index}].visible = true;
         app.echoToOE("👁️ Showing frame ${index}");
       }
@@ -52,8 +60,8 @@ function cycleFrames(total, delay = 300) {
   next();
 }
 
-// Hook to a button
+// Hook to button
 document.getElementById("renameBtn").onclick = () => {
-  const totalFrames = 5; // Change to your actual number of frames
+  const totalFrames = 5; // Change this to match anim_preview.layers.length
   cycleFrames(totalFrames, 300);
 };
