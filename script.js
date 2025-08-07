@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!btn) {
     console.error("❌ Button not found");
     return;
-  }
+  } 
 
   let previewWindow = null;
   let imageDataURLs = [];
