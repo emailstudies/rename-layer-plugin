@@ -36,7 +36,15 @@ document.addEventListener("DOMContentLoaded", () => {
         for (var i = animGroup.layers.length - 1; i >= animGroup.layers.length - 2; i--) {
           var frameLayer = animGroup.layers[i];
 
-          // Clean up any previous layers in temp doc
+          // 🔻 Step 1: Hide all layers in anim_preview
+          for (var h = 0; h < animGroup.layers.length; h++) {
+            animGroup.layers[h].visible = false;
+          }
+
+          // 🔻 Step 2: Make only this frame visible
+          frameLayer.visible = true;
+
+          // 🔻 Step 3: Clean up temp doc
           app.activeDocument = tempDoc;
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
             try {
@@ -45,23 +53,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           app.refresh();
 
-          // Set original active and duplicate
+          // 🔻 Step 4: Duplicate frame to temp
           app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
           original.activeLayer = frameLayer;
-
-          app.echoToOE("📤 Duplicating layer: " + frameLayer.name);
           app.refresh();
+
+          app.echoToOE("📤 Duplicating: " + frameLayer.name);
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("✅ Frame " + frameLayer.name + " duplicated. Temp doc now has: " + tempDoc.layers.length + " layers.");
+          app.echoToOE("✅ Done: " + frameLayer.name + ". Temp doc now has " + tempDoc.layers.length + " layer(s).");
         }
 
-        app.echoToOE("🧪 Done duplicating 2 frames. Inspect _temp_export manually.");
         app.activeDocument = tempDoc;
+        app.echoToOE("🧪 Final state ready. Inspect _temp_export manually.");
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
@@ -69,6 +75,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 🧪 Sent test script for 2-layer duplication");
+    console.log("[flipbook] 🔄 Sent improved test with visibility isolation");
   };
 });
