@@ -24,7 +24,7 @@ function showOnlyFrame(index) {
       }
 
       // Keep 'anim_preview' and 'Background' visible
-      if (animGroup) animGroup.visible = true;
+      animGroup.visible = true;
       if (bgLayer) bgLayer.visible = true;
 
       // Hide all children inside anim_preview
@@ -38,6 +38,39 @@ function showOnlyFrame(index) {
         app.echoToOE("👁️ Showing frame ${index}");
       }
     })();`;
+
+  parent.postMessage(script, "*");
+}
+
+function getFrameCount(callback) {
+  const script = `
+    (function () {
+      var doc = app.activeDocument;
+      var animGroup = null;
+      for (var i = 0; i < doc.layers.length; i++) {
+        var layer = doc.layers[i];
+        if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
+          animGroup = layer;
+          break;
+        }
+      }
+      if (!animGroup) {
+        app.echoToOE("❌ 'anim_preview' not found.");
+      } else {
+        app.echoToOE("✅ count " + animGroup.layers.length);
+      }
+    })();`;
+
+  // Listen for count reply
+  window.addEventListener("message", function handleCount(event) {
+    if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
+      const count = parseInt(event.data.split(" ")[2], 10);
+      if (!isNaN(count)) {
+        window.removeEventListener("message", handleCount);
+        callback(count);
+      }
+    }
+  });
 
   parent.postMessage(script, "*");
 }
@@ -57,6 +90,11 @@ function cycleFrames(total, delay = 300) {
 
 // Hook to button
 document.getElementById("renameBtn").onclick = () => {
-  const totalFrames = 5; // ✅ Set to anim_preview.layers.length
-  cycleFrames(totalFrames, 300);
+  getFrameCount((frameCount) => {
+    if (frameCount > 0) {
+      cycleFrames(frameCount, 300);
+    } else {
+      console.log("No frames found in anim_preview.");
+    }
+  });
 };
