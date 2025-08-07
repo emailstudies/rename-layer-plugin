@@ -4,8 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let previewTab = null;
   let lastPngDataUrl = null;
+  let bufferReady = false;
 
-  // --- Helper: Convert ArrayBuffer to Base64 PNG ---
+  // --- Helper: Convert ArrayBuffer to base64 PNG ---
   function arrayBufferToBase64(buffer) {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -15,44 +16,47 @@ document.addEventListener("DOMContentLoaded", () => {
     return btoa(binary);
   }
 
-  // --- Listen to messages from Photopea and Preview tab ---
+  // --- Message listener for ArrayBuffer + preview messages ---
   if (window.__frameListener__) {
     window.removeEventListener("message", window.__frameListener__);
   }
 
-  window.__frameListener__ = async (event) => {
+  window.__frameListener__ = (event) => {
+    // Step 1: When Photopea sends the PNG
     if (event.data instanceof ArrayBuffer) {
       console.log("📦 Got ArrayBuffer from Photopea");
 
       const base64 = arrayBufferToBase64(event.data);
       lastPngDataUrl = "data:image/png;base64," + base64;
+      bufferReady = true;
 
-      console.log("✅ Converted to DataURL");
-      // Wait for preview to ask for it via "✅ next"
+      console.log("✅ Image is ready. Opening preview...");
+      previewTab = window.open("preview.html", "previewTab");
     }
 
-    if (typeof event.data === "string" && event.data === "✅ next") {
+    // Step 2: When preview asks for it
+    if (event.data === "✅ next") {
       console.log("📨 Got ✅ next from preview");
 
-      if (lastPngDataUrl && previewTab) {
+      if (bufferReady && lastPngDataUrl && previewTab) {
         previewTab.postMessage({
           type: "images",
           images: [lastPngDataUrl],
         }, "*");
-
         console.log("✅ Sent image to preview");
       } else {
-        console.warn("⚠️ No image ready to send yet.");
+        console.warn("⚠️ Image not ready yet. Please wait...");
       }
     }
   };
 
   window.addEventListener("message", window.__frameListener__);
 
-  // --- Click to trigger export and open preview ---
+  // --- Trigger export ---
   btn.onclick = () => {
-    previewTab = window.open("preview.html", "previewTab");
     lastPngDataUrl = null;
+    bufferReady = false;
+    previewTab = null;
 
     const code = `
       (function () {
