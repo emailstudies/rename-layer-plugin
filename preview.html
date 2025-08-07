@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
     html, body {
       margin: 0;
-      background: #111;
-      overflow: hidden;
       height: 100%;
       width: 100%;
+      background: #111;
       font-family: sans-serif;
+      overflow: hidden;
     }
 
     #counter {
@@ -17,61 +18,44 @@
       top: 10px;
       left: 10px;
       background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
       color: white;
+      padding: 4px 8px;
       border-radius: 4px;
-      z-index: 10;
       font-size: 16px;
+      z-index: 10;
     }
 
-    #wrapper {
+    #container {
       width: 100vw;
       height: 100vh;
       display: flex;
-      justify-content: center;
       align-items: center;
-    }
-
-    #canvasScaler {
-      transform-origin: top left;
+      justify-content: center;
     }
 
     canvas {
-      display: block;
-      background: white;
       image-rendering: pixelated;
+      background: white;
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
-  <div id="wrapper">
-    <div id="canvasScaler">
-      <canvas id="previewCanvas"></canvas>
-    </div>
+  <div id="container">
+    <canvas id="previewCanvas"></canvas>
   </div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
-    const scaler = document.getElementById("canvasScaler");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
     const fps = 12;
     let images = [];
     let index = 0;
-
-    function fitCanvasToViewport(width, height) {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const scale = Math.min(vw / width, vh / height);
-      scaler.style.transform = `scale(${scale})`;
-    }
-
-    window.addEventListener("resize", () => {
-      if (images[0]) {
-        fitCanvasToViewport(images[0].width, images[0].height);
-      }
-    });
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images" && Array.isArray(event.data.images)) {
@@ -92,10 +76,8 @@
           loaded++;
           console.log(`✅ Loaded image ${i + 1}`);
           if (loaded === images.length) {
-            canvas.width = images[0].width;
-            canvas.height = images[0].height;
-            fitCanvasToViewport(canvas.width, canvas.height);
             startLoop();
+            resizeCanvas(); // Initial fit
           }
         };
         img.onerror = () => {
@@ -104,15 +86,46 @@
       });
     }
 
+    function resizeCanvas() {
+      if (!images[0]) return;
+
+      const imgW = images[0].naturalWidth;
+      const imgH = images[0].naturalHeight;
+      const aspect = imgW / imgH;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const viewportAspect = vw / vh;
+
+      let newW, newH;
+
+      if (viewportAspect > aspect) {
+        // Wider screen: fit height
+        newH = vh;
+        newW = vh * aspect;
+      } else {
+        // Taller screen: fit width
+        newW = vw;
+        newH = vw / aspect;
+      }
+
+      canvas.width = imgW;
+      canvas.height = imgH;
+      canvas.style.width = newW + "px";
+      canvas.style.height = newH + "px";
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
     function startLoop() {
       if (images.length === 0) return;
+
       setInterval(() => {
         const img = images[index];
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = "#fff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           counter.textContent = `Frame: ${index + 1}`;
         }
         index = (index + 1) % images.length;
