@@ -1,19 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
-  if (!btn) {
-    console.error("❌ Button #renameBtn not found");
-    return;
-  }
-
   btn.onclick = () => {
     const script = `(function () {
       try {
         var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No document or layers.");
-          return;
-        }
+        if (!original) { app.echoToOE("❌ No active document"); return; }
 
         var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
@@ -25,49 +17,49 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup || animGroup.layers.length < 2) {
-          app.echoToOE("❌ 'anim_preview' folder not found or has fewer than 2 layers.");
+          app.echoToOE("❌ Need at least 2 layers in 'anim_preview'");
           return;
         }
 
+        // Create or reuse _temp_export
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
+        app.echoToOE("📄 Created _temp_export");
 
-        app.echoToOE("✅ Temp doc created. Now processing 2 layers...");
-
-        for (var i = animGroup.layers.length - 1; i >= animGroup.layers.length - 2; i--) {
+        // We'll only export the last two layers
+        for (var i = animGroup.layers.length - 2; i < animGroup.layers.length; i++) {
           var frameLayer = animGroup.layers[i];
 
-          // 🔻 Step 1: Hide all layers in anim_preview
-          for (var h = 0; h < animGroup.layers.length; h++) {
-            animGroup.layers[h].visible = false;
-          }
-
-          // 🔻 Step 2: Make only this frame visible
-          frameLayer.visible = true;
-
-          // 🔻 Step 3: Clean up temp doc
           app.activeDocument = tempDoc;
+          app.echoToOE("🧹 Clearing _temp_export layers");
           for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try {
-              tempDoc.layers[j].remove();
-            } catch (e) {}
+            try { tempDoc.layers[j].remove(); } catch (e) {}
           }
+
           app.refresh();
 
-          // 🔻 Step 4: Duplicate frame to temp
           app.activeDocument = original;
+          animGroup.visible = true;
+
+          // Hide all layers first
+          for (var j = 0; j < animGroup.layers.length; j++) {
+            animGroup.layers[j].visible = false;
+          }
+
+          // Show only current layer
+          frameLayer.visible = true;
           original.activeLayer = frameLayer;
+          app.echoToOE("🔁 Preparing frame: " + frameLayer.name);
           app.refresh();
 
-          app.echoToOE("📤 Duplicating: " + frameLayer.name);
+          // Duplicate to temp
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          app.echoToOE("✅ Duplicated frame: " + frameLayer.name);
 
-          app.activeDocument = tempDoc;
+          // Pause a moment
           app.refresh();
-          app.echoToOE("✅ Done: " + frameLayer.name + ". Temp doc now has " + tempDoc.layers.length + " layer(s).");
         }
 
-        app.activeDocument = tempDoc;
-        app.echoToOE("🧪 Final state ready. Inspect _temp_export manually.");
+        app.echoToOE("✅ done (temp left open)");
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
@@ -75,6 +67,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 🔄 Sent improved test with visibility isolation");
+    console.log("[flipbook] 📤 Sent export script to Photopea");
   };
 });
