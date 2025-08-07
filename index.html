@@ -6,56 +6,56 @@
   <style>
     body {
       font-family: sans-serif;
-      padding: 20px;
+      padding: 10px;
       margin: 0;
-      transition: all 0.2s ease;
-      overflow: hidden;
     }
- 
-    #controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+
+    #mainUI, #playbackUI {
+      display: none;
+    }
+
+    #mainUI.active, #playbackUI.active {
+      display: block;
     }
 
     input, button {
-      padding: 10px;
-      font-size: 16px;
-      box-sizing: border-box;
+      padding: 6px;
+      font-size: 14px;
+      margin-top: 8px;
       width: 100%;
+      box-sizing: border-box;
     }
 
-    button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #388E3C;
-    }
-
-    #stopBtn {
-      display: none;
-      width: 20px;
+    #stopBtn, #nextBtn {
+      width: 40px;
       height: 20px;
-      font-size: 12px;
-      padding: 0;
-      align-self: center;
+      font-size: 10px;
+      padding: 2px;
+      margin-right: 4px;
     }
 
-    .compact input,
-    .compact #renameBtn {
-      display: none;
+    .row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
     }
   </style>
 </head>
 <body>
-  <div id="controls">
-    <input id="newName" type="text" placeholder="Enter FPS (e.g. 3)" />
-    <button id="renameBtn">Play</button>
-    <button id="stopBtn">⏹️</button>
+
+  <!-- Main rename UI -->
+  <div id="mainUI" class="active">
+    <h3>Rename Selected Layer</h3>
+    <input id="newName" type="text" placeholder="Enter FPS" />
+    <button id="renameBtn">Rename</button>
+  </div>
+
+  <!-- Minimal playback UI -->
+  <div id="playbackUI">
+    <div class="row">
+      <button id="stopBtn">Stop</button>
+      <button id="nextBtn">Next</button>
+    </div>
   </div>
 
   <script src="script.js"></script>
