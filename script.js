@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-
   if (!btn) {
     console.error("❌ Button not found");
     return;
@@ -11,43 +10,61 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         var doc = app.activeDocument;
         if (!doc || doc.layers.length === 0) {
-          alert("❌ No active document or layers.");
+          alert("❌ No document or layers.");
           return;
         }
 
-        app.refresh(); // Ensure visibility state is current
-        app.saveToOE("png"); // Save current visible view
-        app.echoToOE("✅ saveToOE finished");
+        // Just use the first visible layer
+        var targetLayer = null;
+        for (var i = 0; i < doc.layers.length; i++) {
+          if (doc.layers[i].visible && doc.layers[i].typename !== "LayerSet") {
+            targetLayer = doc.layers[i];
+            break;
+          }
+        }
+
+        if (!targetLayer) {
+          alert("❌ No visible layer found.");
+          return;
+        }
+
+        // Create a new doc for export
+        var temp = app.documents.add(doc.width, doc.height, doc.resolution, "_debug_export", NewDocumentMode.RGB);
+
+        // Clear default content
+        for (var j = temp.layers.length - 1; j >= 0; j--) {
+          try { temp.layers[j].remove(); } catch (e) {}
+        }
+
+        // Duplicate layer
+        targetLayer.duplicate(temp, ElementPlacement.PLACEATBEGINNING);
+
+        app.activeDocument = temp;
+        app.refresh();
+        temp.saveToOE("png");
+
+        // Optional: keep the export doc open
+        // temp.close(SaveOptions.DONOTSAVECHANGES);
+
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("📤 Sent saveToOE script to Photopea");
+    console.log("📤 Sent minimal saveToOE export script");
   };
-
-  const buffers = [];
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
-      const binary = String.fromCharCode(...new Uint8Array(event.data));
-      const dataURL = "data:image/png;base64," + btoa(binary);
-      console.log("✅ Got image data");
+      console.log("📥 Got ArrayBuffer from Photopea. Size:", event.data.byteLength);
 
-      const win = window.open();
-      if (win) {
-        win.document.write(\`
-          <html><head><title>Exported Frame</title></head>
-          <body style="margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh;">
-            <img src="\${dataURL}" style="max-width:100%; max-height:100%; image-rendering:pixelated;" />
-          </body></html>
-        \`);
-      } else {
-        alert("⚠️ Could not open preview tab.");
-      }
+      const blob = new Blob([event.data], { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+
     } else if (typeof event.data === "string") {
-      console.log("ℹ️ Log from Photopea:", event.data);
+      console.log("📩 Message from Photopea:", event.data);
     }
   });
 });
