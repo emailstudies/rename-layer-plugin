@@ -1,139 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Flipbook Preview</title>
+  <title>Frame Viewer</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
       background: #111;
-      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       height: 100vh;
-      overflow: hidden;
       font-family: sans-serif;
-    }
-
-    #counter {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
       color: white;
-      border-radius: 4px;
-      z-index: 10;
-      font-size: 14px;
     }
-
-    #canvas-padding-wrapper {
-      width: 100%;
-      height: 100%;
-      padding: 20px;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #canvas-wrapper {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     canvas {
+      background: white;
+      margin-bottom: 1em;
       image-rendering: pixelated;
-      display: block;
-      max-width: 100%;
-      max-height: 100%;
-      height: auto;
-      width: auto;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #555;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
-
-  <div id="canvas-padding-wrapper">
-    <div id="canvas-wrapper">
-      <canvas id="previewCanvas"></canvas>
-    </div>
-  </div>
+  <canvas id="canvas" width="256" height="256"></canvas>
+  <button id="nextBtn">Next</button>
 
   <script>
-    const canvas = document.getElementById("previewCanvas");
-    const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
-    const fps = 12;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const nextBtn = document.getElementById('nextBtn');
 
     let images = [];
     let index = 0;
-    let readyToAnimate = false;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        images = srcList.map((src) => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadImages(images);
+        console.log("[preview] Received", event.data.images.length, "images");
+        loadImages(event.data.images);
       }
     });
 
-    function preloadImages(imageList) {
-      let loadedCount = 0;
-      const total = imageList.length;
-
-      imageList.forEach((img, i) => {
-        img.onload = () => {
-          loadedCount++;
-          if (loadedCount === total) {
-            // Once all are ready
-            readyToAnimate = true;
-            canvas.width = imageList[0].width;
-            canvas.height = imageList[0].height;
-            requestAnimationFrame(drawLoop);
-          }
-        };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+    function loadImages(dataURLs) {
+      images = dataURLs.map(src => {
+        const img = new Image();
+        img.src = src;
+        return img;
       });
+
+      index = 0;
+      drawCurrentImage();
     }
 
-    let lastTimestamp = 0;
-    const frameInterval = 1000 / fps;
+    function drawCurrentImage() {
+      const img = images[index];
+      if (!img) return;
 
-    function drawLoop(timestamp) {
-      if (!readyToAnimate || images.length === 0) {
-        requestAnimationFrame(drawLoop);
-        return;
-      }
-
-      if (timestamp - lastTimestamp >= frameInterval) {
-        const img = images[index];
-
-        // Clear and fill white
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw current frame
         ctx.drawImage(img, 0, 0);
-        counter.textContent = `Frame: ${index + 1}`;
+        console.log(`🖼️ Displaying frame ${index + 1} of ${images.length}`);
+      };
 
-        // Advance
-        index = (index + 1) % images.length;
-        lastTimestamp = timestamp;
+      // If already loaded, draw immediately
+      if (img.complete && img.naturalWidth > 0) {
+        img.onload();
       }
-
-      requestAnimationFrame(drawLoop);
     }
+
+    nextBtn.addEventListener("click", () => {
+      if (images.length === 0) return;
+      index = (index + 1) % images.length;
+      drawCurrentImage();
+    });
   </script>
 </body>
 </html>
