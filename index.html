@@ -2,25 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Flipbook Controller</title>
-  <style> 
+  <title>Rename Layer</title>
+  <style>
     body {
       font-family: sans-serif;
       padding: 20px;
+      margin: 0;
+      transition: all 0.2s ease;
+      overflow: hidden;
     }
 
     #controls {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-width: 300px;
     }
 
     input, button {
       padding: 10px;
       font-size: 16px;
-      width: 100%;
       box-sizing: border-box;
+      width: 100%;
     }
 
     button {
@@ -28,7 +30,6 @@
       color: white;
       border: none;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
 
     button:hover {
@@ -37,33 +38,24 @@
 
     #stopBtn {
       display: none;
-      background-color: #f44336;
-    }
-
-    #stopBtn:hover {
-      background-color: #d32f2f;
-    }
-
-    /* Compact style when animating */
-    .compact #stopBtn {
+      width: 20px;
+      height: 20px;
       font-size: 12px;
       padding: 0;
-      height: 20px;
-      line-height: 20px;
+      align-self: center;
     }
 
     .compact input,
     .compact #renameBtn {
-      display: none !important;
+      display: none;
     }
   </style>
 </head>
 <body>
-
   <div id="controls">
-    <input id="newName" type="text" placeholder="FPS (e.g. 6)" />
-    <button id="renameBtn">Play Preview</button>
-    <button id="stopBtn">Stop</button>
+    <input id="newName" type="text" placeholder="Enter FPS (e.g. 3)" />
+    <button id="renameBtn">Play</button>
+    <button id="stopBtn">⏹️</button>
   </div>
 
   <script src="script.js"></script>
