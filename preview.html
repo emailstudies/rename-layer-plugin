@@ -1,87 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
-    body {
-      background: #222;
-      color: #fff;
-      font-family: sans-serif;
-      text-align: center;
+    html, body {
       margin: 0;
-      padding: 20px;
+      background: #111;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      justify-content: center; 
+      align-items: center;
+      font-family: sans-serif;
+    }
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
     }
     canvas {
-      background: #fff;
-      display: block;
-      margin: 20px auto;
-    }
-    #controls {
-      margin-top: 10px;
-    }
-    button {
-      margin: 0 10px;
-      padding: 8px 16px;
-      font-size: 16px;
-      cursor: pointer;
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <h2>Flipbook Preview</h2>
+  <div id="counter">Frame: 0</div>
   <canvas id="previewCanvas"></canvas>
-  <div id="controls">
-    <button id="prevBtn">Prev</button>
-    <button id="nextBtn">Next</button>
-  </div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
-
-    const images = [];
-    let currentIndex = 0;
-
-    function renderFrame(index) {
-      const img = new Image();
-      img.onload = () => {
-        // Set canvas size on first load
-        if (canvas.width !== img.width || canvas.height !== img.height) {
-          canvas.width = img.width;
-          canvas.height = img.height;
-        }
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-      };
-      img.src = images[index];
-    }
-
-    document.getElementById("prevBtn").onclick = () => {
-      if (currentIndex > 0) {
-        currentIndex--;
-        renderFrame(currentIndex);
-      }
-    };
-
-    document.getElementById("nextBtn").onclick = () => {
-      if (currentIndex < images.length - 1) {
-        currentIndex++;
-        renderFrame(currentIndex);
-      }
-    };
+    const counter = document.getElementById("counter");
+    const fps = 12;
+    let images = [];
+    let index = 0;
 
     window.addEventListener("message", (event) => {
-      const data = event.data;
-
-      if (typeof data === "object" && data.type === "images" && Array.isArray(data.images)) {
-        images.length = 0;
-        images.push(...data.images);
-        currentIndex = 0;
-        renderFrame(currentIndex);
+      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
+        const srcList = event.data.images;
+        images = srcList.map((src) => {
+          const img = new Image();
+          img.src = src;
+          return img;
+        });
+        preloadAndAnimate(images);
       }
     });
+
+    function preloadAndAnimate(images) {
+      let loaded = 0;
+      images.forEach((img, i) => {
+        img.onload = () => {
+          loaded++;
+          console.log(`✅ Loaded image ${i + 1}`);
+
+          // ✅ Log dimensions of the first image
+          if (i === 0) {
+            console.log(`🧩 First image dimensions: ${img.width}x${img.height}`);
+          }
+
+          if (loaded === images.length) {
+            startLoop();
+          }
+        };
+        img.onerror = () => {
+          console.warn(`❌ Failed to load image ${i + 1}`);
+        };
+      });
+    }
+
+    function startLoop() {
+      if (images.length === 0) return;
+
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
+
+      setInterval(() => {
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
+      }, 1000 / fps);
+    }
   </script>
 </body>
 </html>
