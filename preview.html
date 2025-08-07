@@ -1,80 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
   <title>Flipbook Preview</title>
   <style>
+    html, body {
+      margin: 0;
+      background: #111;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: sans-serif;
+    }
+    #counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
+      font-size: 14px;
+    }
     canvas {
       image-rendering: pixelated;
-      display: block;
-      margin: 0 auto;
-      background: #eee;
-    }
-    #info {
-      text-align: center;
-      font-family: monospace;
-      margin-top: 10px;
+      background: #fff;
+      box-shadow: 0 0 10px #000;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="512" height="512"></canvas>
-  <div id="info">Waiting for frames...</div>
+  <div id="counter">Frame: 0</div>
+  <canvas id="previewCanvas"></canvas>
 
   <script>
-    const canvas = document.getElementById("canvas");
+    const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
-    const info = document.getElementById("info");
-
-    let frames = [];
+    const counter = document.getElementById("counter");
+    const fps = 12;
     let images = [];
-    let currentFrame = 0;
-    let intervalId = null;
-    const fps = 6;
+    let index = 0;
 
-    // This ensures we only attach one listener
-    window.removeEventListener("message", window._flipbookHandler);
-    window._flipbookHandler = function (event) {
-      const data = event.data;
-
-      if (typeof data === "object" && data.type === "images" && Array.isArray(data.images)) {
-        frames = data.images;
-        preloadImages(frames);
+    // Receive frames from parent
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images") {
+        const srcList = event.data.images;
+        images = srcList.map(src => {
+          const img = new Image();
+          img.src = src;
+          return img;
+        });
+        preloadAndAnimate(images);
       }
-    };
-    window.addEventListener("message", window._flipbookHandler);
+    });
 
-    function preloadImages(srcArray) {
+    function preloadAndAnimate(images) {
       let loaded = 0;
-      images = [];
-
-      srcArray.forEach((src, i) => {
-        const img = new Image();
+      images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          images[i] = img;
-
-          if (loaded === srcArray.length) {
-            info.textContent = `Loaded ${images.length} frames. Playing…`;
-            startAnimation();
+          console.log(`✅ Loaded image ${i + 1}`);
+          if (loaded === images.length) {
+            startLoop();
           }
         };
         img.onerror = () => {
-          info.textContent = `❌ Failed to load frame ${i}`;
+          console.warn(`❌ Failed to load image ${i + 1}`);
         };
-        img.src = src;
       });
     }
 
-    function startAnimation() {
-      if (intervalId) clearInterval(intervalId);
+    function startLoop() {
+      if (images.length === 0) return;
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
 
-      currentFrame = 0;
-      intervalId = setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(images[currentFrame], 0, 0);
-        info.textContent = `Frame ${currentFrame + 1} / ${images.length}`;
-        currentFrame = (currentFrame + 1) % images.length;
+      setInterval(() => {
+        const img = images[index];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          counter.textContent = `Frame: ${index + 1}`;
+        }
+        index = (index + 1) % images.length;
       }, 1000 / fps);
     }
   </script>
