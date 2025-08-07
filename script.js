@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
- 
+
   if (!btn) {
     console.error("❌ Button #renameBtn not found");
     return;
@@ -35,39 +35,39 @@ document.addEventListener("DOMContentLoaded", () => {
         for (var i = animGroup.layers.length - 1; i >= animGroup.layers.length - 2; i--) {
           var frameLayer = animGroup.layers[i];
 
-          // 1. Hide all layers in animGroup
+          // Hide all layers
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = false;
           }
 
-          // 2. Show only the current frame
+          // Show only current
           frameLayer.visible = true;
           animGroup.visible = true;
           app.refresh();
 
-          // 3. Create a temp group, move this layer into it
-          var tempGroup = animGroup.layerSets.add();
+          // Duplicate frame layer to top-level
+          var tempLayer = frameLayer.duplicate(original, ElementPlacement.PLACEATBEGINNING);
+
+          // Wrap duplicate in a new top-level group
+          var tempGroup = original.layerSets.add();
           tempGroup.name = "__temp_frame_group__";
-          frameLayer.move(tempGroup, ElementPlacement.INSIDE);
+          tempLayer.move(tempGroup, ElementPlacement.INSIDE);
           app.refresh();
 
-          // 4. Duplicate the group into temp doc
-          app.echoToOE("📤 Duplicating frame group: " + tempGroup.name);
+          // Duplicate group into tempDoc
           tempGroup.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // 5. Move layer back out and delete temp group
-          var movedLayer = tempGroup.layers[0];
-          movedLayer.move(animGroup, ElementPlacement.PLACEATBEGINNING);
+          // Cleanup: remove group from original
           tempGroup.remove();
           app.refresh();
 
-          // 6. Confirm result
+          // Log and switch to temp
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("✅ Frame duplicated. Temp doc now has: " + tempDoc.layers.length + " layers.");
+          app.echoToOE("✅ Duplicated: " + frameLayer.name + " | Temp doc now has: " + tempDoc.layers.length + " layers.");
         }
 
-        app.echoToOE("🧪 Done duplicating 2 frames. Inspect _temp_export manually.");
+        app.echoToOE("🧪 Finished duplicating 2 frames. Inspect _temp_export manually.");
         app.activeDocument = tempDoc;
 
       } catch (e) {
@@ -76,6 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 🧪 Sent isolation-via-group script");
+    console.log("[flipbook] 🧪 Sent corrected group-isolation script");
   };
 });
