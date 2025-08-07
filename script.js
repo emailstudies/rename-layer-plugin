@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   } 
 
-  const collectedFrames = [];
+  const collectedFrames = []; 
   let imageDataURLs = [];
   let previewWindow = null;
 
