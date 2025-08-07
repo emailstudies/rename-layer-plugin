@@ -1,3 +1,5 @@
+let shouldStop = false;
+
 function showOnlyFrame(index) {
   const script = `
     (function () {
@@ -23,16 +25,13 @@ function showOnlyFrame(index) {
         return;
       }
 
-      // Keep 'anim_preview' and 'Background' visible
       animGroup.visible = true;
       if (bgLayer) bgLayer.visible = true;
 
-      // Hide all children inside anim_preview
       for (var i = 0; i < animGroup.layers.length; i++) {
         animGroup.layers[i].visible = false;
       }
 
-      // Show only the target child layer
       if (${index} < animGroup.layers.length) {
         animGroup.layers[${index}].visible = true;
         app.echoToOE("👁️ Showing frame ${index}");
@@ -77,19 +76,29 @@ function getFrameCount(callback) {
 
 function cycleFrames(total, delay = 300) {
   let i = total - 1;
+
   function next() {
-    if (i < 0) return;
+    if (shouldStop) {
+      console.log("🛑 Animation loop stopped.");
+      return;
+    }
+
     showOnlyFrame(i);
     i--;
+    if (i < 0) i = total - 1; // loop back to end
+
     setTimeout(next, delay);
   }
+
   next();
 }
 
+// ▶️ Play button
 document.getElementById("renameBtn").onclick = () => {
+  shouldStop = false;
   let fps = parseFloat(document.getElementById("newName").value);
   if (isNaN(fps) || fps <= 0) {
-    fps = 3; // default fallback FPS
+    fps = 3;
   }
   const delay = 1000 / fps;
 
@@ -102,4 +111,9 @@ document.getElementById("renameBtn").onclick = () => {
       console.log("No frames found in anim_preview.");
     }
   });
+};
+
+// 🟥 Stop button
+document.getElementById("stopBtn").onclick = () => {
+  shouldStop = true;
 };
