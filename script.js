@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btn.onclick = () => {
     const script = `(function () {
-      try { 
+      try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
           app.echoToOE("❌ No document or layers.");
@@ -35,38 +35,36 @@ document.addEventListener("DOMContentLoaded", () => {
         for (var i = animGroup.layers.length - 1; i >= animGroup.layers.length - 2; i--) {
           var frameLayer = animGroup.layers[i];
 
-          // 1. Ensure only this frameLayer is visible
+          // 1. Hide all layers in animGroup
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = false;
           }
+
+          // 2. Show only the current frame
           frameLayer.visible = true;
           animGroup.visible = true;
           app.refresh();
 
-          // Log visibility state
-          app.echoToOE("👁️ Only visible: " + frameLayer.name);
-
-          // 2. Clean up temp doc layers
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try {
-              tempDoc.layers[j].remove();
-            } catch (e) {}
-          }
+          // 3. Create a temp group, move this layer into it
+          var tempGroup = animGroup.layerSets.add();
+          tempGroup.name = "__temp_frame_group__";
+          frameLayer.move(tempGroup, ElementPlacement.INSIDE);
           app.refresh();
 
-          // 3. Switch back, set active layer, duplicate
-          app.activeDocument = original;
-          original.activeLayer = frameLayer;
+          // 4. Duplicate the group into temp doc
+          app.echoToOE("📤 Duplicating frame group: " + tempGroup.name);
+          tempGroup.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          app.echoToOE("📤 Duplicating layer: " + frameLayer.name);
+          // 5. Move layer back out and delete temp group
+          var movedLayer = tempGroup.layers[0];
+          movedLayer.move(animGroup, ElementPlacement.PLACEATBEGINNING);
+          tempGroup.remove();
           app.refresh();
-          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // 4. Confirm in temp doc
+          // 6. Confirm result
           app.activeDocument = tempDoc;
           app.refresh();
-          app.echoToOE("✅ Frame " + frameLayer.name + " duplicated. Temp doc now has: " + tempDoc.layers.length + " layers.");
+          app.echoToOE("✅ Frame duplicated. Temp doc now has: " + tempDoc.layers.length + " layers.");
         }
 
         app.echoToOE("🧪 Done duplicating 2 frames. Inspect _temp_export manually.");
@@ -78,6 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 🧪 Sent test script with visibility isolation");
+    console.log("[flipbook] 🧪 Sent isolation-via-group script");
   };
 });
