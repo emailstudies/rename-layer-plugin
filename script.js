@@ -1,6 +1,6 @@
 let interval = null;
 let currentIndex = 0;
-let totalFrames = 0;
+let totalFrames = 0; 
 
 // Show one frame in Photopea
 function showOnlyFrame(index) {
