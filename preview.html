@@ -5,98 +5,81 @@
   <title>Flipbook Preview</title>
   <style>
     body {
-      background: #f0f0f0;
+      background: #222;
+      color: #fff;
       font-family: sans-serif;
+      text-align: center;
       margin: 0;
-      padding: 10px;
+      padding: 20px;
     }
     canvas {
+      background: #fff;
       display: block;
-      background: white;
-      margin: 10px auto;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      margin: 20px auto;
     }
-    #counter {
-      text-align: center;
+    #controls {
       margin-top: 10px;
-      font-size: 18px;
-      font-weight: bold;
+    }
+    button {
+      margin: 0 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <h2>Flipbook Preview</h2>
   <canvas id="previewCanvas"></canvas>
-  <div id="counter">Frame: 0</div>
+  <div id="controls">
+    <button id="prevBtn">Prev</button>
+    <button id="nextBtn">Next</button>
+  </div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
 
     const images = [];
-    let index = 0;
-    const fps = 6;
+    let currentIndex = 0;
 
-    function preloadAndAnimate(images) {
-      let loaded = 0;
-      const total = images.length;
-
-      images.forEach((img, i) => {
-        img.onload = () => {
-          loaded++;
-          console.log(`✅ Loaded image ${i + 1}/${total}`);
-
-          if (loaded === total) {
-            // ✅ Set canvas size to match first image
-            canvas.width = images[0].width;
-            canvas.height = images[0].height;
-            console.log("🖼️ Canvas size set to:", canvas.width, "x", canvas.height);
-            startLoop();
-          }
-        };
-
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
-      });
-    }
-
-    function startLoop() {
-      if (images.length === 0) return;
-
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
+    function renderFrame(index) {
+      const img = new Image();
+      img.onload = () => {
+        // Set canvas size on first load
+        if (canvas.width !== img.width || canvas.height !== img.height) {
+          canvas.width = img.width;
+          canvas.height = img.height;
         }
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = images[index];
     }
 
-    window.addEventListener("message", (event) => {
-      try {
-        const frameBlob = new Blob([event.data], { type: "image/png" });
-        const img = new Image();
-        img.src = URL.createObjectURL(frameBlob);
-        images.push(img);
-        console.log(`📥 Received frame ${images.length}`);
-      } catch (err) {
-        console.error("❌ Error receiving frame:", err);
+    document.getElementById("prevBtn").onclick = () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderFrame(currentIndex);
       }
-    });
+    };
 
-    window.addEventListener("DOMContentLoaded", () => {
-      console.log("🟢 Preview window ready and waiting for frames...");
-    });
+    document.getElementById("nextBtn").onclick = () => {
+      if (currentIndex < images.length - 1) {
+        currentIndex++;
+        renderFrame(currentIndex);
+      }
+    };
 
     window.addEventListener("message", (event) => {
-      if (typeof event.data === "string" && event.data.trim() === "[flipbook] ✅ all frames sent") {
-        console.log("✅ All frames received. Starting animation...");
-        preloadAndAnimate(images);
+      const data = event.data;
+
+      if (typeof data === "object" && data.type === "images" && Array.isArray(data.images)) {
+        images.length = 0;
+        images.push(...data.images);
+        currentIndex = 0;
+        renderFrame(currentIndex);
       }
     });
   </script>
