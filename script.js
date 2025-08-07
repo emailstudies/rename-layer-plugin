@@ -4,7 +4,7 @@ function showOnlyFrame(index) {
       var doc = app.activeDocument;
       var animGroup = null;
       var bgLayer = null;
-
+ 
       // First, identify background layer by name
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
