@@ -4,20 +4,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let previewTab = null;
 
-  // Listen once for the ArrayBuffer from Photopea
+  // Clean old listeners
   if (window.__frameListener__) {
     window.removeEventListener("message", window.__frameListener__);
   }
 
-  window.__frameListener__ = (event) => {
+  // Reliable ArrayBuffer → base64
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
+  window.__frameListener__ = async (event) => {
     if (!(event.data instanceof ArrayBuffer)) return;
 
-    const binary = String.fromCharCode(...new Uint8Array(event.data));
-    const dataUrl = "data:image/png;base64," + btoa(binary);
+    const base64 = arrayBufferToBase64(event.data);
+    const dataUrl = "data:image/png;base64," + base64;
 
-    console.log("✅ Got PNG ArrayBuffer, sending to preview.html");
+    console.log("✅ Got PNG, sending to preview");
 
-    // Send to preview tab
     previewTab?.postMessage({
       type: "images",
       images: [dataUrl]
