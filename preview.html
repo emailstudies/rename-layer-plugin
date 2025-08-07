@@ -1,193 +1,82 @@
 <!DOCTYPE html>
 <html>
-<head> 
+<head>
+  <meta charset="UTF-8">
   <title>Flipbook Preview</title>
   <style>
-    html, body {
-      margin: 0;
-      background: #111;
-      overflow: hidden;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-family: sans-serif;
-    }
-    #counter {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
-      color: white;
-      border-radius: 4px;
-    }
     canvas {
       image-rendering: pixelated;
+      display: block;
+      margin: 0 auto;
+      background: #eee;
+    }
+    #info {
+      text-align: center;
+      font-family: monospace;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
-  <canvas id="previewCanvas"></canvas>
+  <canvas id="canvas" width="512" height="512"></canvas>
+  <div id="info">Waiting for frames...</div>
 
   <script>
-    const canvas = document.getElementById("previewCanvas");
+    const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
-    const fps = 12;
+    const info = document.getElementById("info");
+
+    let frames = [];
     let images = [];
-    let index = 0;
+    let currentFrame = 0;
+    let intervalId = null;
+    const fps = 6;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images") {
-        const srcList = event.data.images;
-        images = srcList.map(src => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
+    // This ensures we only attach one listener
+    window.removeEventListener("message", window._flipbookHandler);
+    window._flipbookHandler = function (event) {
+      const data = event.data;
+
+      if (typeof data === "object" && data.type === "images" && Array.isArray(data.images)) {
+        frames = data.images;
+        preloadImages(frames);
       }
-    });
+    };
+    window.addEventListener("message", window._flipbookHandler);
 
-    function preloadAndAnimate(images) {
+    function preloadImages(srcArray) {
       let loaded = 0;
-      images.forEach((img, i) => {
+      images = [];
+
+      srcArray.forEach((src, i) => {
+        const img = new Image();
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
+          images[i] = img;
+
+          if (loaded === srcArray.length) {
+            info.textContent = `Loaded ${images.length} frames. Playing…`;
+            startAnimation();
           }
         };
         img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
+          info.textContent = `❌ Failed to load frame ${i}`;
         };
+        img.src = src;
       });
     }
 
-    function startLoop() {
-      if (images.length === 0) return;
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
+    function startAnimation() {
+      if (intervalId) clearInterval(intervalId);
 
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
-        }
-        index = (index + 1) % images.length;
+      currentFrame = 0;
+      intervalId = setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(images[currentFrame], 0, 0);
+        info.textContent = `Frame ${currentFrame + 1} / ${images.length}`;
+        currentFrame = (currentFrame + 1) % images.length;
       }, 1000 / fps);
     }
   </script>
 </body>
 </html>
-—------------------------------------
-
-// flipbook_export.js (Plugin-side)
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
-
-  if (!btn) {
-    console.error("❌ Button not found");
-    return;
-  }
-
-  btn.onclick = () => {
-    const script = `(function () {
-      try {
-        var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
-          return;
-        }
-
-        var animFolder = null;
-        for (var i = 0; i < original.layers.length; i++) {
-          if (original.layers[i].name === "anim_preview" && original.layers[i].typename === "LayerSet") {
-            animFolder = original.layers[i];
-            break;
-          }
-        }
-
-        if (!animFolder) {
-          alert("❌ 'anim_preview' folder not found.");
-          return;
-        }
-
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-
-        for (var i = 0; i < animFolder.layers.length; i++) {
-          var layer = animFolder.layers[i];
-          if (layer.name === "Background" && layer.locked) continue;
-
-          // Clear tempDoc
-          app.activeDocument = tempDoc;
-          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
-            try { tempDoc.layers[j].remove(); } catch (e) {}
-          }
-
-          // Duplicate with visibility fix
-          app.activeDocument = original;
-          var wasVisible = layer.visible;
-          layer.visible = true;
-          var dup = layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-          layer.visible = wasVisible;
-
-          // Export frame
-          app.activeDocument = tempDoc;
-          app.refresh();
-          app.echoToOE("📸 Exported frame: " + layer.name);
-          tempDoc.saveToOE("png");
-        }
-
-        // Cleanup
-        app.activeDocument = tempDoc;
-        tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.activeDocument = original;
-        app.echoToOE("✅ done");
-      } catch (e) {
-        app.echoToOE("❌ ERROR: " + e.message);
-      }
-    })();`;
-
-    parent.postMessage(script, "*");
-    console.log("📤 Sent export script to Photopea");
-  };
-
-  const collectedFrames = [];
-
-  window.addEventListener("message", (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      collectedFrames.push(event.data);
-    } else if (typeof event.data === "string") {
-      if (event.data === "✅ done") {
-        if (collectedFrames.length === 0) {
-          console.log("❌ No frames received.");
-          return;
-        }
-
-        const framesBase64 = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return btoa(binary);
-        });
-
-        const previewWindow = window.open("preview.html");
-        previewWindow.onload = () => {
-          previewWindow.postMessage({ type: "images", images: framesBase64 }, "*");
-        };
-
-        collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.log("⚠️ Photopea reported:", event.data);
-      } else if (event.data.startsWith("📸")) {
-        console.log(event.data);
-      }
-    }
-  });
-});
