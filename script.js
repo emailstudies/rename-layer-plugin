@@ -1,5 +1,11 @@
 let shouldStop = false;
 
+function toggleUI(isPlaying) {
+  document.getElementById("newName").style.display = isPlaying ? "none" : "inline";
+  document.getElementById("renameBtn").style.display = isPlaying ? "none" : "inline";
+  document.getElementById("stopBtn").style.display = isPlaying ? "inline" : "none";
+}
+
 function showOnlyFrame(index) {
   const script = `
     (function () {
@@ -15,7 +21,6 @@ function showOnlyFrame(index) {
         } else if (layer.name.toLowerCase() === "background") {
           bgLayer = layer;
         } else {
-          // Hide all other top-level layers
           layer.visible = false;
         }
       }
@@ -79,14 +84,12 @@ function cycleFrames(total, delay = 300) {
 
   function next() {
     if (shouldStop) {
-      console.log("🛑 Animation loop stopped.");
+      toggleUI(false);
       return;
     }
-
     showOnlyFrame(i);
     i--;
-    if (i < 0) i = total - 1; // loop back to end
-
+    if (i < 0) i = total - 1;
     setTimeout(next, delay);
   }
 
@@ -96,6 +99,8 @@ function cycleFrames(total, delay = 300) {
 // ▶️ Play button
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
+  toggleUI(true);
+
   let fps = parseFloat(document.getElementById("newName").value);
   if (isNaN(fps) || fps <= 0) {
     fps = 3;
@@ -109,11 +114,13 @@ document.getElementById("renameBtn").onclick = () => {
       cycleFrames(frameCount, delay);
     } else {
       console.log("No frames found in anim_preview.");
+      toggleUI(false);
     }
   });
 };
 
-// 🟥 Stop button
+// ⏹️ Stop button
 document.getElementById("stopBtn").onclick = () => {
   shouldStop = true;
+  toggleUI(false);
 };
