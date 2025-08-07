@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Flipbook Preview Docked</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Canvas Zoom with Fixed UI</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      width: 100%;
       overflow: hidden;
-      font-family: sans-serif;
       background: #111;
+      font-family: sans-serif;
     }
 
     #app-layout {
@@ -20,23 +21,25 @@
     }
 
     #top-bar {
-      height: 40px;
-      background: #222;
+      height: 50px;
+      background-color: #222;
       color: white;
-      padding: 8px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
       box-sizing: border-box;
     }
 
     .content-area {
       flex: 1;
       display: flex;
+      overflow: hidden;
     }
 
     #side-bar {
       width: 200px;
-      background: #333;
+      background-color: #333;
       color: white;
       padding: 10px;
       box-sizing: border-box;
@@ -44,43 +47,54 @@
 
     #canvas-wrapper {
       flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      background: #111;
       position: relative;
+      background-color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #previewCanvas {
+      image-rendering: pixelated;
+      background: white;
+      transform-origin: top left;
     }
 
     #counter {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 5px 10px;
       color: white;
-      border-radius: 4px;
+      border-radius: 5px;
       z-index: 10;
       font-size: 14px;
     }
 
-    canvas {
-      image-rendering: pixelated;
-      display: block;
-      background: white;
+    button {
+      margin-right: 8px;
     }
   </style>
 </head>
 <body>
   <div id="app-layout">
-    <div id="top-bar">Top Bar (Toolbar)</div>
+    <div id="top-bar">
+      <div>
+        <button onclick="zoomIn()">Zoom In</button>
+        <button onclick="zoomOut()">Zoom Out</button>
+        <button onclick="resetZoom()">Reset Zoom</button>
+      </div>
+      <div>Toolbar</div>
+    </div>
 
     <div class="content-area">
-      <div id="side-bar">Sidebar Panel</div>
+      <div id="side-bar">Sidebar</div>
 
       <div id="canvas-wrapper">
         <div id="counter">Frame: 0</div>
-        <canvas id="previewCanvas"></canvas>
+        <canvas id="previewCanvas" width="256" height="256"></canvas>
       </div>
     </div>
   </div>
@@ -89,57 +103,40 @@
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
-    const fps = 12;
-    let images = [];
-    let index = 0;
+    let zoomLevel = 1;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        images = srcList.map((src) => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
-      }
-    });
-
-    function preloadAndAnimate(images) {
-      let loaded = 0;
-      images.forEach((img, i) => {
-        img.onload = () => {
-          loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
-          }
-        };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
-      });
+    function applyZoom() {
+      canvas.style.transform = `scale(${zoomLevel})`;
     }
 
-    function startLoop() {
-      if (images.length === 0) return;
-
-      // Set canvas to exact image resolution (no CSS scaling)
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
-        }
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
+    function zoomIn() {
+      zoomLevel = Math.min(zoomLevel + 0.1, 3);
+      applyZoom();
     }
+
+    function zoomOut() {
+      zoomLevel = Math.max(zoomLevel - 0.1, 0.1);
+      applyZoom();
+    }
+
+    function resetZoom() {
+      zoomLevel = 1;
+      applyZoom();
+    }
+
+    // Draw frame counter
+    let i = 1;
+    setInterval(() => {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "black";
+      ctx.font = "40px sans-serif";
+      ctx.fillText(`Frame ${i}`, 40, 130);
+      counter.textContent = `Frame: ${i}`;
+      i = (i % 10) + 1;
+    }, 1000);
+
+    applyZoom();
   </script>
 </body>
 </html>
