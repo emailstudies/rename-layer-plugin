@@ -4,9 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!btn) {
     console.error("❌ Button #renameBtn not found");
     return;
-  } 
+  }
 
-  const collectedFrames = []; 
+  const collectedFrames = [];
   let imageDataURLs = [];
   let previewWindow = null;
 
@@ -29,36 +29,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return; // ❌ ignore noisy metadata blobs
       }
 
-      if (event.data.startsWith("{")) {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "done") {
-            console.log("[flipbook] ✅ All frames received with dimensions:", msg.width, msg.height);
+      if (event.data === "✅ done") {
+        console.log("[flipbook] ✅ All frames received.");
 
-            if (collectedFrames.length === 0) {
-              alert("❌ No frames received.");
-              return;
-            }
-
-            imageDataURLs = collectedFrames.map((ab) => {
-              const binary = String.fromCharCode(...new Uint8Array(ab));
-              return "data:image/png;base64," + btoa(binary);
-            });
-
-            if (previewWindow && previewWindow.postMessage) {
-              previewWindow.postMessage({
-                type: "images",
-                images: imageDataURLs,
-                width: msg.width,
-                height: msg.height
-              }, "*");
-            }
-
-            collectedFrames.length = 0;
-          }
-        } catch (e) {
-          console.warn("⚠️ JSON parse error:", e);
+        if (collectedFrames.length === 0) {
+          alert("❌ No frames received.");
+          return;
         }
+
+        imageDataURLs = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return "data:image/png;base64," + btoa(binary);
+        });
+
+        if (previewWindow && previewWindow.postMessage) {
+          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+        }
+
+        collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
         console.warn("[flipbook] ⚠️", event.data);
       } else {
@@ -81,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     collectedFrames.length = 0;
 
-    const script = (function () {
+    const script = `(function () {
       try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
@@ -132,16 +120,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         app.activeDocument = tempDoc;
         tempDoc.close(SaveOptions.DONOTSAVECHANGES);
-        app.echoToOE(JSON.stringify({
-          type: "done",
-          width: original.width,
-          height: original.height
-        }));
+        app.echoToOE("✅ done");
 
       } catch (e) {
         app.echoToOE("❌ ERROR: " + e.message);
       }
-    })();;
+    })();`;
 
     parent.postMessage(script, "*");
     console.log("[flipbook] 📤 Sent export script to Photopea");
