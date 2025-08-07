@@ -2,6 +2,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
   if (!btn) return alert("❌ No #renameBtn found");
 
+  let imageTab = null;
+
   if (window.__saveToOEListener__) {
     window.removeEventListener("message", window.__saveToOEListener__);
   }
@@ -13,8 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const base64 = btoa(binary);
       const dataUrl = "data:image/png;base64," + base64;
 
-      // Open the image in a new tab for inspection
-      window.open(dataUrl, "_blank");
+      if (imageTab) {
+        imageTab.document.body.innerHTML = `<img src="${dataUrl}" style="max-width:100%;" />`;
+      }
     }
   };
 
@@ -22,11 +25,19 @@ document.addEventListener("DOMContentLoaded", () => {
   window.__saveToOEListener__ = handleImage;
 
   btn.onclick = () => {
+    imageTab = window.open("", "_blank");
+    if (!imageTab) {
+      alert("❌ Please allow popups for this site");
+      return;
+    }
+    imageTab.document.write("<p>⏳ Waiting for PNG...</p>");
+
     const script = `
       try {
         if (!app.activeDocument) {
           app.echoToOE("❌ No active document.");
         } else {
+          app.echoToOE("🔄 Calling saveToOE");
           app.refresh();
           app.saveToOE("png");
         }
