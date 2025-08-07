@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Flipbook Preview</title>
+  <title>Flipbook Controller</title>
   <style>
     body {
       font-family: sans-serif;
@@ -28,6 +28,7 @@
       color: white;
       border: none;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
 
     button:hover {
@@ -42,15 +43,26 @@
     #stopBtn:hover {
       background-color: #d32f2f;
     }
+
+    /* Compact style when animating */
+    .compact #stopBtn {
+      font-size: 12px;
+      padding: 0;
+      height: 20px;
+      line-height: 20px;
+    }
+
+    .compact input,
+    .compact #renameBtn {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Flipbook Preview Controls</h2>
-
   <div id="controls">
-    <input id="newName" type="text" placeholder="Enter FPS (e.g. 3)" />
-    <button id="renameBtn">Play</button>
+    <input id="newName" type="text" placeholder="FPS (e.g. 6)" />
+    <button id="renameBtn">Play Preview</button>
     <button id="stopBtn">Stop</button>
   </div>
 
