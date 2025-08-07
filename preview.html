@@ -1,56 +1,93 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       background: #111;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
+      color: #fff;
       font-family: sans-serif;
+      height: 100%;
+      overflow: hidden;
     }
 
     #counter {
       position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
-      color: white;
-      border-radius: 4px;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 10;
-      font-size: 14px;
+      font-size: 18px;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      pointer-events: none;
     }
 
     #canvas-padding-wrapper {
-      width: 100%;
-      height: 100%;
-      padding: 40px; /* ✅ Padding added */
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      padding: 40px;
       box-sizing: border-box;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
+      pointer-events: none; /* disables accidental interaction with wrapper */
     }
 
     #canvas-wrapper {
-      overflow: hidden;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      max-width: 100%;
-      max-height: 100%;
+      pointer-events: auto; /* re-enable interaction for canvas */
+      background: #222;
+      padding: 8px;
+      border-radius: 12px;
     }
 
     canvas {
-      image-rendering: pixelated;
-      display: block;
       max-width: 100%;
       max-height: 100%;
-      height: auto;
-      width: auto;
+      display: block;
+      background: white;
+    }
+
+    #timeline {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100px;
+      overflow-x: auto;
+      background: #222;
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      box-sizing: border-box;
+      gap: 8px;
+      z-index: 5;
+      border-top: 2px solid #444;
+    }
+
+    #timeline img {
+      height: 80px;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s, transform 0.2s;
+      border: 2px solid transparent;
+    }
+
+    #timeline img.active {
+      opacity: 1;
+      border-color: #fff;
+      transform: scale(1.05);
     }
   </style>
 </head>
@@ -63,39 +100,59 @@
     </div>
   </div>
 
+  <div id="timeline"></div>
+
   <script>
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
-    const fps = 12;
-    let images = [];
+
+    const images = [];
     let index = 0;
+    const fps = 6;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        images = srcList.map((src) => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
-      }
-    });
-
-    function preloadAndAnimate(images) {
+    function preloadAndAnimate(loadedImages) {
       let loaded = 0;
-      images.forEach((img, i) => {
+      loadedImages.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
+          if (loaded === loadedImages.length) {
+            setupTimeline();
             startLoop();
           }
         };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+      });
+    }
+
+    function setupTimeline() {
+      const timeline = document.getElementById("timeline");
+      timeline.innerHTML = "";
+
+      images.forEach((img, i) => {
+        const thumb = document.createElement("img");
+        thumb.src = img.src;
+        thumb.dataset.index = i;
+        thumb.addEventListener("click", () => {
+          index = i;
+          renderFrame();
+        });
+        timeline.appendChild(thumb);
+      });
+    }
+
+    function renderFrame() {
+      const img = images[index];
+      if (!img) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      counter.textContent = `Frame: ${index + 1}`;
+
+      // Update active thumbnail
+      document.querySelectorAll("#timeline img").forEach((el, i) => {
+        el.classList.toggle("active", i === index);
       });
     }
 
@@ -106,17 +163,23 @@
       canvas.height = images[0].height;
 
       setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
-        }
+        renderFrame();
         index = (index + 1) % images.length;
       }, 1000 / fps);
     }
+
+    window.addEventListener("message", (event) => {
+      if (!event.data || !Array.isArray(event.data.frames)) return;
+
+      images.length = 0;
+      event.data.frames.forEach((frameData) => {
+        const img = new Image();
+        img.src = frameData;
+        images.push(img);
+      });
+
+      preloadAndAnimate(images);
+    }, false);
   </script>
 </body>
 </html>
