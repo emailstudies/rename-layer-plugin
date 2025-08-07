@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         collectedFrames.length = 0;
       } else if (event.data.startsWith("❌")) {
+        // ✅ Show alert if Photopea reports error
+        alert(event.data);
         console.warn("[flipbook] ⚠️ Error:", event.data);
       }
     }
