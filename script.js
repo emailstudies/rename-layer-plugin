@@ -1,23 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-
-  if (!btn) {
-    console.error("❌ Button #renameBtn not found");
-    return;
-  }
+  if (!btn) return console.error("❌ Button #renameBtn not found");
 
   btn.onclick = () => {
     const script = `(function () {
       try {
-        app.echoToOE("[flipbook] 🚀 Running export test");
+        app.echoToOE("[flipbook] 🚀 Starting COPY-based export");
 
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No document or layers found.");
+          app.echoToOE("❌ No valid doc or layers.");
           return;
         }
 
-        // 🔍 Find anim_preview group
         var animGroup = null;
         for (var i = 0; i < original.layers.length; i++) {
           var layer = original.layers[i];
@@ -27,78 +22,65 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        if (!animGroup || animGroup.layers.length < 1) {
-          app.echoToOE("❌ 'anim_preview' group missing or empty.");
+        if (!animGroup || animGroup.layers.length === 0) {
+          app.echoToOE("❌ 'anim_preview' not found or empty.");
           return;
         }
 
-        // 🧼 Hide all frames initially
+        // Hide all frames first
         for (var i = 0; i < animGroup.layers.length; i++) {
           animGroup.layers[i].visible = false;
         }
 
-        // ✅ Create temp doc and make sure it's initialized
+        // Create temp doc
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
         app.activeDocument = tempDoc;
         app.refresh();
-        app.echoToOE("[flipbook] 🧪 Created and focused temp doc");
+        app.echoToOE("[flipbook] ✅ Created _temp_export");
 
-        // 🧪 Export only 2 frames for testing
-        var maxFrames = Math.min(2, animGroup.layers.length);
+        // Export 2 frames
+        var frameCount = Math.min(2, animGroup.layers.length);
 
-        for (var i = 0; i < maxFrames; i++) {
+        for (var i = 0; i < frameCount; i++) {
           var frame = animGroup.layers[i];
 
-          // 🔁 Hide all and show only current
+          // Show only this frame
           for (var j = 0; j < animGroup.layers.length; j++) {
             animGroup.layers[j].visible = (j === i);
           }
 
           app.activeDocument = original;
-          app.refresh();
-          app.echoToOE("[flipbook] 🎞 Exporting frame " + (i + 1) + ": " + frame.name);
-
-          // 🗑 Clear previous layers in temp
-          app.activeDocument = tempDoc;
-          for (var k = tempDoc.layers.length - 1; k >= 0; k--) {
-            try { tempDoc.layers[k].remove(); } catch (e) {}
-          }
-          app.refresh();
-
-          // 🔁 Duplicate visible frame into temp
-          app.activeDocument = original;
           original.activeLayer = frame;
-          frame.visible = true;
-
-          // ⏳ Failsafe: Ensure tempDoc is still valid
-          if (!tempDoc || typeof tempDoc !== "object" || !("name" in tempDoc)) {
-            app.echoToOE("❌ tempDoc invalid at frame " + (i + 1));
-            return;
-          }
-
-          // 📥 Duplicate to temp
-          try {
-            frame.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
-            app.echoToOE("[flipbook] ✅ Duplicated: " + frame.name);
-          } catch (e) {
-            app.echoToOE("❌ Failed to duplicate frame " + (i + 1) + ": " + e.message);
-          }
-
-          // 🖼 Export PNG
-          app.activeDocument = tempDoc;
           app.refresh();
-          tempDoc.saveToOE("png");
+
+          try {
+            // Select and copy
+            app.runMenuItem(stringIDToTypeID("selectAll"));
+            app.runMenuItem(stringIDToTypeID("copy"));
+
+            // Paste into temp
+            app.activeDocument = tempDoc;
+            for (var k = tempDoc.layers.length - 1; k >= 0; k--) {
+              try { tempDoc.layers[k].remove(); } catch (e) {}
+            }
+            app.runMenuItem(stringIDToTypeID("paste"));
+            app.refresh();
+
+            tempDoc.saveToOE("png");
+            app.echoToOE("[flipbook] ✅ Frame " + (i + 1) + " exported");
+
+          } catch (err) {
+            app.echoToOE("❌ Copy/paste failed at frame " + (i + 1) + ": " + err.message);
+          }
         }
 
-        // Leave temp open for inspection
-        app.echoToOE("[flipbook] 🧯 Done test export (temp kept open)");
-
-      } catch (err) {
-        app.echoToOE("❌ ERROR: " + err.message);
+        app.echoToOE("[flipbook] 🎉 Done (temp open)");
+      } catch (e) {
+        app.echoToOE("❌ SCRIPT ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent test export script to Photopea");
+    console.log("[flipbook] 📤 Sent copy/paste export script");
   };
 });
