@@ -1,66 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Flipbook Preview</title>
   <style>
-    html, body {
-      margin: 0;
-      background: #111;
-      overflow: hidden;
-      height: 100%;
-      display: flex;
-      justify-content: center; 
-      align-items: center;
+    body {
+      background: #f0f0f0;
       font-family: sans-serif;
-    }
-    #counter {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 8px;
-      color: white;
-      border-radius: 4px;
+      margin: 0;
+      padding: 10px;
     }
     canvas {
-      image-rendering: pixelated;
+      display: block;
+      background: white;
+      margin: 10px auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    #counter {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 18px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div id="counter">Frame: 0</div>
   <canvas id="previewCanvas"></canvas>
+  <div id="counter">Frame: 0</div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
-    const fps = 12;
-    let images = [];
-    let index = 0;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        images = srcList.map((src) => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
-      }
-    });
+    const images = [];
+    let index = 0;
+    const fps = 6;
 
     function preloadAndAnimate(images) {
       let loaded = 0;
+      const total = images.length;
+
       images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
+          console.log(`✅ Loaded image ${i + 1}/${total}`);
+
+          if (loaded === total) {
+            // ✅ Set canvas size to match first image
+            canvas.width = images[0].width;
+            canvas.height = images[0].height;
+            console.log("🖼️ Canvas size set to:", canvas.width, "x", canvas.height);
             startLoop();
           }
         };
+
         img.onerror = () => {
           console.warn(`❌ Failed to load image ${i + 1}`);
         };
@@ -69,9 +63,6 @@
 
     function startLoop() {
       if (images.length === 0) return;
-
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
 
       setInterval(() => {
         const img = images[index];
@@ -85,6 +76,29 @@
         index = (index + 1) % images.length;
       }, 1000 / fps);
     }
+
+    window.addEventListener("message", (event) => {
+      try {
+        const frameBlob = new Blob([event.data], { type: "image/png" });
+        const img = new Image();
+        img.src = URL.createObjectURL(frameBlob);
+        images.push(img);
+        console.log(`📥 Received frame ${images.length}`);
+      } catch (err) {
+        console.error("❌ Error receiving frame:", err);
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      console.log("🟢 Preview window ready and waiting for frames...");
+    });
+
+    window.addEventListener("message", (event) => {
+      if (typeof event.data === "string" && event.data.trim() === "[flipbook] ✅ all frames sent") {
+        console.log("✅ All frames received. Starting animation...");
+        preloadAndAnimate(images);
+      }
+    });
   </script>
 </body>
 </html>
