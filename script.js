@@ -9,48 +9,45 @@ document.addEventListener("DOMContentLoaded", () => {
   btn.onclick = () => {
     const script = `(function () {
       try {
-        app.refresh();
-        app.echoToOE("Width: " + app.activeDocument.width);
-        app.echoToOE("Height: " + app.activeDocument.height);
-        app.echoToOE("Layers: " + app.activeDocument.layers.length);
-        app.saveToOE("png");
+        var doc = app.activeDocument;
+        if (!doc || doc.layers.length === 0) {
+          alert("❌ No active document or layers.");
+          return;
+        }
+
+        app.refresh(); // Ensure visibility state is current
+        app.saveToOE("png"); // Save current visible view
         app.echoToOE("✅ saveToOE finished");
       } catch (e) {
-        app.echoToOE("❌ " + e.message);
+        app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[🟡] Sent saveToOE script to Photopea");
+    console.log("📤 Sent saveToOE script to Photopea");
   };
 
-  let receivedImage = null;
+  const buffers = [];
 
   window.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
-      console.log("[🟢] Got image ArrayBuffer from Photopea!");
-      receivedImage = event.data;
+      const binary = String.fromCharCode(...new Uint8Array(event.data));
+      const dataURL = "data:image/png;base64," + btoa(binary);
+      console.log("✅ Got image data");
 
-      // Convert to base64
-      const binary = String.fromCharCode(...new Uint8Array(receivedImage));
-      const base64 = btoa(binary);
-      const dataURL = "data:image/png;base64," + base64;
-
-      // Open in new tab
-      const imgWindow = window.open();
-      if (imgWindow) {
-        imgWindow.document.write(
-          "<title>Preview</title>" +
-          "<body style='margin:0;background:#111;display:flex;justify-content:center;align-items:center;height:100vh'>" +
-          "<img src='" + dataURL + "' style='max-width:100%;max-height:100%'/>" +
-          "</body>"
-        );
+      const win = window.open();
+      if (win) {
+        win.document.write(\`
+          <html><head><title>Exported Frame</title></head>
+          <body style="margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh;">
+            <img src="\${dataURL}" style="max-width:100%; max-height:100%; image-rendering:pixelated;" />
+          </body></html>
+        \`);
       } else {
-        alert("❌ Could not open preview tab.");
+        alert("⚠️ Could not open preview tab.");
       }
-
     } else if (typeof event.data === "string") {
-      console.log("[ℹ️] Log from Photopea:", event.data);
+      console.log("ℹ️ Log from Photopea:", event.data);
     }
   });
 });
