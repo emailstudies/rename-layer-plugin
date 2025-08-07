@@ -1,16 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
-
-  if (!btn) {
-    console.error("❌ Button #renameBtn not found");
-    return;
-  }
+  if (!btn) return alert("❌ No #renameBtn found");
 
   const collectedFrames = [];
   let imageDataURLs = [];
   let previewWindow = null;
 
-  // Cleanup previous listeners
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
@@ -18,28 +13,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const handleMessage = (event) => {
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
+      if (previewWindow) {
+        previewWindow.postMessage("✅ next", "*");
+      }
       return;
     }
 
-    if (typeof event.data === "string") {
-      if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) return;
+    if (event.data === "✅ done") {
+      console.log("[flipbook] ✅ All frames received.");
+      imageDataURLs = collectedFrames.map((ab) => {
+        const binary = String.fromCharCode(...new Uint8Array(ab));
+        return "data:image/png;base64," + btoa(binary);
+      });
 
-      if (event.data === "✅ done") {
-        console.log("[flipbook] ✅ All frames received:", collectedFrames.length);
-
-        imageDataURLs = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return "data:image/png;base64," + btoa(binary);
-        });
-
-        if (previewWindow && previewWindow.postMessage) {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
-
-        collectedFrames.length = 0;
-      } else {
-        console.log("[flipbook] ℹ️", event.data);
+      if (previewWindow) {
+        previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
       }
+
+      collectedFrames.length = 0;
     }
   };
 
@@ -47,46 +38,65 @@ document.addEventListener("DOMContentLoaded", () => {
   window.__flipbookMessageListener__ = handleMessage;
 
   btn.onclick = () => {
-  previewWindow = window.open("preview.html");
+    previewWindow = window.open("preview.html");
+    if (!previewWindow) return alert("❌ Please allow popups");
 
-  if (!previewWindow) {
-    alert("❌ Could not open preview window. Please allow popups.");
-    return;
-  }
+    collectedFrames.length = 0;
 
-  collectedFrames.length = 0;
+    const script = `
+      (function () {
+        try {
+          var doc = app.activeDocument;
+          if (!doc || doc.layers.length === 0) {
+            app.echoToOE("❌ No layers to export");
+            return;
+          }
 
-  const script = `(function () {
-    try {
-      var doc = app.activeDocument;
-      if (!doc || doc.layers.length === 0) {
-        app.echoToOE("❌ No layers in the document.");
-        return;
-      }
+          var tempDoc = app.documents.add(doc.width, doc.height, doc.resolution, "_temp", NewDocumentMode.RGB);
+          for (var j = tempDoc.layers.length - 1; j >= 0; j--) {
+            try { tempDoc.layers[j].remove(); } catch (e) {}
+          }
 
-      var layer = doc.layers[0];
-      app.echoToOE("🔍 Exporting: " + layer.name + " (" + layer.typename + ")");
+          var layers = doc.layers;
+          var frameIndex = 0;
 
-      var tempDoc = app.documents.add(doc.width, doc.height, doc.resolution, "_temp_export", NewDocumentMode.RGB);
-      tempDoc.artLayers.add(); // Dummy layer to ensure structure
+          function exportFrame(index) {
+            if (index >= layers.length) {
+              app.echoToOE("✅ done");
+              return;
+            }
 
-      layer.visible = true;
-      doc.activeLayer = layer;
-      layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+            for (var k = 0; k < layers.length; k++) {
+              layers[k].visible = false;
+            }
 
-      app.activeDocument = tempDoc;
-      app.echoToOE("📸 Saving: " + tempDoc.layers[0].name);
-      tempDoc.saveToOE("png");
+            var current = layers[index];
+            current.visible = true;
+            doc.activeLayer = current;
 
-      app.activeDocument = tempDoc;
-      tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+            var dup = current.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+            app.activeDocument = tempDoc;
+            app.refresh();
+            tempDoc.saveToOE("png");
 
-      app.echoToOE("✅ done");
-    } catch (e) {
-      app.echoToOE("❌ ERROR: " + e.message);
-    }
-  })();`;
+            app.echoToOE("📸 Sent frame " + index);
+            frameIndex = index + 1;
+          }
 
-  parent.postMessage(script, "*");
-  console.log("[flipbook] 📤 Sent single-layer export script to Photopea");
-};
+          window.__frameAckListener__ = function (event) {
+            if (event.data === "✅ next") {
+              exportFrame(frameIndex);
+            }
+          };
+
+          window.addEventListener("message", window.__frameAckListener__);
+          exportFrame(0);
+        } catch (e) {
+          app.echoToOE("❌ ERROR: " + e.message);
+        }
+      })();`;
+
+    parent.postMessage(script, "*");
+    console.log("[flipbook] 📤 Sent coordinated export script");
+  };
+});
