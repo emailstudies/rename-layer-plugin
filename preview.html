@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Flipbook Preview</title>
   <style>
     html, body {
@@ -14,12 +14,12 @@
       font-family: sans-serif;
     }
 
-    /* Fixed UI (e.g. counter) not affected by canvas scaling */
+    /* Fixed UI overlay */
     #ui {
       position: fixed;
       top: 10px;
       left: 10px;
-      z-index: 10;
+      z-index: 100;
       background: rgba(0, 0, 0, 0.5);
       color: white;
       padding: 6px 12px;
@@ -28,37 +28,46 @@
       pointer-events: none;
     }
 
-    /* Canvas wrapper centers canvas, canvas is scaled inside */
+    /* Canvas scaling wrapper */
     #canvasWrapper {
       width: 100%;
       height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    #canvasScaler {
+      transform-origin: top left;
     }
 
     canvas {
       background: white;
       image-rendering: pixelated;
       display: block;
-      transform-origin: top left;
+      width: auto;
+      height: auto;
     }
   </style>
 </head>
 <body>
 
-  <!-- Toolbar UI -->
+  <!-- UI Overlay -->
   <div id="ui">
     Frame: <span id="counter">0</span>
   </div>
 
-  <!-- Canvas container -->
+  <!-- Canvas Display Area -->
   <div id="canvasWrapper">
-    <canvas id="previewCanvas"></canvas>
+    <div id="canvasScaler">
+      <canvas id="previewCanvas"></canvas>
+    </div>
   </div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
+    const scaler = document.getElementById("canvasScaler");
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
     let images = [];
@@ -99,15 +108,15 @@
       canvas.height = originalHeight;
 
       function resizeCanvas() {
-        const containerWidth = window.innerWidth;
-        const containerHeight = window.innerHeight;
-        let scale = containerWidth / originalWidth;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let scale = vw / originalWidth;
 
-        if (originalHeight * scale > containerHeight) {
-          scale = containerHeight / originalHeight;
+        if (originalHeight * scale > vh) {
+          scale = vh / originalHeight;
         }
 
-        canvas.style.transform = `scale(${scale})`;
+        scaler.style.transform = `scale(${scale})`;
       }
 
       resizeCanvas();
