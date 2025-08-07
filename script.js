@@ -3,13 +3,18 @@ function showOnlyFrame(index) {
     (function () {
       var doc = app.activeDocument;
       var animGroup = null;
+      var bgLayer = null;
 
-      // Find 'anim_preview' group
+      // Identify 'anim_preview' and 'Background' layers
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
           animGroup = layer;
-          break;
+        } else if (layer.name.toLowerCase() === "background") {
+          bgLayer = layer;
+        } else {
+          // Hide all other top-level layers
+          layer.visible = false;
         }
       }
 
@@ -18,19 +23,17 @@ function showOnlyFrame(index) {
         return;
       }
 
-      // Hide all layers
-      for (var i = 0; i < doc.layers.length; i++) {
-        doc.layers[i].visible = false;
-      }
+      // Keep 'anim_preview' and 'Background' visible
+      animGroup.visible = true;
+      if (bgLayer) bgLayer.visible = true;
 
-      // Hide all inside anim_preview
+      // Hide all children inside anim_preview
       for (var i = 0; i < animGroup.layers.length; i++) {
         animGroup.layers[i].visible = false;
       }
 
-      // Show only the target frame
+      // Show only the target child layer
       if (${index} < animGroup.layers.length) {
-        animGroup.visible = true;
         animGroup.layers[${index}].visible = true;
         app.echoToOE("👁️ Showing frame ${index}");
       }
@@ -39,27 +42,8 @@ function showOnlyFrame(index) {
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay = 300) {
-  let i = total - 1; // Reverse for Photopea's visual order
-
-  function next() {
-    if (i < 0) return;
-    showOnlyFrame(i);
-    i--;
-    setTimeout(next, delay);
-  }
-
-  next();
-}
-
-document.getElementById("renameBtn").onclick = () => {
-  const fpsInput = document.getElementById("newName");
-  let fps = parseFloat(fpsInput.value);
-
-  if (isNaN(fps) || fps < 1) fps = 12; // Default fallback
-  const delay = 1000 / fps;
-
-  const getFrameCountScript = `
+function getFrameCount(callback) {
+  const script = `
     (function () {
       var doc = app.activeDocument;
       var animGroup = null;
@@ -70,25 +54,52 @@ document.getElementById("renameBtn").onclick = () => {
           break;
         }
       }
-
       if (!animGroup) {
         app.echoToOE("❌ 'anim_preview' not found.");
-        return;
+      } else {
+        app.echoToOE("✅ count " + animGroup.layers.length);
       }
-
-      var count = animGroup.layers.length;
-      app.echoToOE("FRAME_COUNT::" + count);
     })();`;
 
-  parent.postMessage(getFrameCountScript, "*");
+  window.addEventListener("message", function handleCount(event) {
+    if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
+      const count = parseInt(event.data.split(" ")[2], 10);
+      if (!isNaN(count)) {
+        console.log("🧮 Detected frames in anim_preview:", count);
+        window.removeEventListener("message", handleCount);
+        callback(count);
+      }
+    }
+  });
 
-  // Listen for frame count echo
-  window.addEventListener("message", function handleMsg(e) {
-    if (typeof e.data === "string" && e.data.startsWith("FRAME_COUNT::")) {
-      const totalFrames = parseInt(e.data.split("::")[1]);
-      console.log("✅ Frame count:", totalFrames);
-      cycleFrames(totalFrames, delay);
-      window.removeEventListener("message", handleMsg);
+  parent.postMessage(script, "*");
+}
+
+function cycleFrames(total, delay = 300) {
+  let i = total - 1;
+  function next() {
+    if (i < 0) return;
+    showOnlyFrame(i);
+    i--;
+    setTimeout(next, delay);
+  }
+  next();
+}
+
+document.getElementById("renameBtn").onclick = () => {
+  let fps = parseFloat(document.getElementById("newName").value);
+  if (isNaN(fps) || fps <= 0) {
+    fps = 3; // default fallback FPS
+  }
+  const delay = 1000 / fps;
+
+  console.log("🎞️ Using FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
+
+  getFrameCount((frameCount) => {
+    if (frameCount > 0) {
+      cycleFrames(frameCount, delay);
+    } else {
+      console.log("No frames found in anim_preview.");
     }
   });
 };
