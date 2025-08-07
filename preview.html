@@ -28,7 +28,7 @@
     #canvas-padding-wrapper {
       width: 100%;
       height: 100%;
-      padding: 20px; 
+      padding: 40px;
       box-sizing: border-box;
       display: flex;
       align-items: center;
@@ -68,55 +68,67 @@
     const ctx = canvas.getContext("2d");
     const counter = document.getElementById("counter");
     const fps = 12;
-    let images = [];
-    let index = 0;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        images = srcList.map((src) => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-        preloadAndAnimate(images);
+    let rawFrames = [];        // raw dataURLs
+    let loadedImages = [];     // Image() objects
+    let totalFramesExpected = null;
+    let frameIndex = 0;
+    let animationStarted = false;
+
+    // 🔁 Draw loop using requestAnimationFrame
+    function animateLoop() {
+      const img = loadedImages[frameIndex];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        counter.textContent = `Frame: ${frameIndex + 1}`;
       }
-    });
 
-    function preloadAndAnimate(images) {
-      let loaded = 0;
-      images.forEach((img, i) => {
+      frameIndex = (frameIndex + 1) % loadedImages.length;
+      setTimeout(() => requestAnimationFrame(animateLoop), 1000 / fps);
+    }
+
+    function startIfReady() {
+      if (totalFramesExpected !== null && rawFrames.length === totalFramesExpected) {
+        preloadImages();
+      }
+    }
+
+    function preloadImages() {
+      let loadedCount = 0;
+      loadedImages = rawFrames.map((src, i) => {
+        const img = new Image();
         img.onload = () => {
-          loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
+          loadedCount++;
+          if (loadedCount === rawFrames.length && !animationStarted) {
+            animationStarted = true;
+            canvas.width = img.width;
+            canvas.height = img.height;
+            requestAnimationFrame(animateLoop);
           }
         };
-        img.onerror = () => {
-          console.warn(`❌ Failed to load image ${i + 1}`);
-        };
+        img.onerror = () => console.warn("❌ Failed to load frame " + (i + 1));
+        img.src = src;
+        return img;
       });
     }
 
-    function startLoop() {
-      if (images.length === 0) return;
+    // ✅ Listen for messages from plugin
+    window.addEventListener("message", (event) => {
+      const { type, data, total } = event.data || {};
 
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
+      if (type === "frame") {
+        rawFrames.push(data);
+        startIfReady();
+      }
 
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete && img.naturalWidth > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = `Frame: ${index + 1}`;
-        }
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
-    }
+      if (type === "frameCount") {
+        totalFramesExpected = total;
+        startIfReady();
+      }
+    });
   </script>
 </body>
 </html>
