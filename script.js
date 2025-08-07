@@ -66,6 +66,7 @@ function getFrameCount(callback) {
     if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
       const count = parseInt(event.data.split(" ")[2], 10);
       if (!isNaN(count)) {
+        console.log("🧮 Detected frames in anim_preview:", count);
         window.removeEventListener("message", handleCount);
         callback(count);
       }
@@ -76,15 +77,13 @@ function getFrameCount(callback) {
 }
 
 function cycleFrames(total, delay = 300) {
-  let i = 0;
-
+  let i = total - 1; // Invert to play UI top-down
   function next() {
-    if (i >= total) return;
+    if (i < 0) return;
     showOnlyFrame(i);
-    i++;
+    i--;
     setTimeout(next, delay);
   }
-
   next();
 }
 
