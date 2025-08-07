@@ -62,6 +62,6 @@ function cycleFrames(total, delay = 300) {
 
 // Hook to button
 document.getElementById("renameBtn").onclick = () => {
-  const totalFrames = 5; // Change this to match anim_preview.layers.length
+  const totalFrames = 5; // ✅ Set this to actual anim_preview layer count
   cycleFrames(totalFrames, 300);
 };
