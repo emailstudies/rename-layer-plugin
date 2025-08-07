@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html> 
+<html>
 <head>
   <title>Flipbook Preview</title>
   <style>
@@ -8,11 +8,24 @@
       background: #111;
       overflow: hidden;
       height: 100%;
-      display: flex;
-      justify-content: center; 
-      align-items: center;
+      width: 100%;
       font-family: sans-serif;
+      position: relative;
     }
+
+    #canvasWrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      display: block;
+    }
+
     #counter {
       position: absolute;
       top: 10px;
@@ -21,16 +34,16 @@
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
-    }
-    canvas {
-      image-rendering: pixelated;
-      display: block;
+      font-size: 16px; /* ✅ Always readable */
+      z-index: 100;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
-  <canvas id="previewCanvas"></canvas>
+  <div id="canvasWrapper">
+    <canvas id="previewCanvas"></canvas>
+  </div>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
