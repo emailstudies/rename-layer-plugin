@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageDataURLs = [];
   let previewWindow = null;
 
-  // Cleanup old listeners
+  // Cleanup previous listeners
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
@@ -27,11 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.data === "✅ done") {
         console.log("[flipbook] ✅ All frames received:", collectedFrames.length);
 
-        if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
-          return;
-        }
-
         imageDataURLs = collectedFrames.map((ab) => {
           const binary = String.fromCharCode(...new Uint8Array(ab));
           return "data:image/png;base64," + btoa(binary);
@@ -42,8 +37,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.warn("[flipbook] ⚠️", event.data);
       } else {
         console.log("[flipbook] ℹ️", event.data);
       }
@@ -65,55 +58,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const script = `(function () {
       try {
-        var original = app.activeDocument;
-        if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
+        var doc = app.activeDocument;
+        if (!doc || doc.layers.length < 2) {
+          app.echoToOE("❌ Need at least two root layers.");
           return;
         }
 
-        var animGroup = null;
-        for (var i = 0; i < original.layers.length; i++) {
-          var layer = original.layers[i];
-          if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
-            animGroup = layer;
-            break;
-          }
-        }
+        var tempDoc = app.documents.add(doc.width, doc.height, doc.resolution, "_temp_export", NewDocumentMode.RGB);
+        tempDoc.artLayers.add(); // Add an empty layer so it doesn't throw if none exist
 
-        if (!animGroup) {
-          app.echoToOE("❌ Folder 'anim_preview' not found.");
-          return;
-        }
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+          var layer = doc.layers[i];
+          if (layer.typename !== "ArtLayer") continue;
 
-        if (animGroup.layers.length === 0) {
-          app.echoToOE("❌ 'anim_preview' folder is empty.");
-          return;
-        }
-
-        // Create a new transparent doc
-        var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
-
-        for (var i = animGroup.layers.length - 1; i >= 0; i--) {
-          var frameLayer = animGroup.layers[i];
-          if (frameLayer.name === "Background" && frameLayer.locked) continue;
-
-          // Clean temp doc
+          // Clear temp doc
           app.activeDocument = tempDoc;
           while (tempDoc.layers.length > 0) {
             try { tempDoc.layers[0].remove(); } catch (e) {}
           }
 
-          // Duplicate from original to temp
-          app.activeDocument = original;
-          animGroup.visible = true;
-          frameLayer.visible = true;
-          original.activeLayer = frameLayer;
-          frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
+          // Duplicate from root
+          app.activeDocument = doc;
+          layer.visible = true;
+          doc.activeLayer = layer;
+          layer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
-          // Log visible layer name
-          app.echoToOE("🔍 Exporting: " + frameLayer.name);
+          app.echoToOE("🔍 Exporting: " + layer.name);
 
-          // Send frame
+          // Send PNG
           app.activeDocument = tempDoc;
           tempDoc.saveToOE("png");
         }
@@ -126,6 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     parent.postMessage(script, "*");
-    console.log("[flipbook] 📤 Sent test export script to Photopea");
+    console.log("[flipbook] 📤 Sent root-layer export script");
   };
 });
