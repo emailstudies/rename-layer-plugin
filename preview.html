@@ -6,8 +6,9 @@
     html, body {
       margin: 0;
       padding: 0;
-      height: 100%;
       background: #111;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
       font-family: sans-serif;
     }
@@ -20,32 +21,46 @@
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
-      font-size: 16px;
       z-index: 10;
+      font-size: 14px;
     }
 
-    #canvas-wrapper {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      overflow: hidden;
+    #canvas-padding-wrapper {
+      width: 100%;
+      height: 100%;
+      padding: 40px; /* ✅ Padding added */
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
+    #canvas-wrapper {
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
     canvas {
-      display: block;
       image-rendering: pixelated;
-      background: white;
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      height: auto;
+      width: auto;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
-  <div id="canvas-wrapper">
-    <canvas id="previewCanvas"></canvas>
+
+  <div id="canvas-padding-wrapper">
+    <div id="canvas-wrapper">
+      <canvas id="previewCanvas"></canvas>
+    </div>
   </div>
 
   <script>
@@ -87,23 +102,8 @@
     function startLoop() {
       if (images.length === 0) return;
 
-      const baseWidth = images[0].width;
-      const baseHeight = images[0].height;
-
-      canvas.width = baseWidth;
-      canvas.height = baseHeight;
-
-      // Auto scale to fit within the viewport, maintaining aspect ratio
-      function resizeCanvas() {
-        const wrapper = document.getElementById("canvas-wrapper");
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const scale = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight, 1);
-        wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      }
-
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
 
       setInterval(() => {
         const img = images[index];
@@ -120,5 +120,3 @@
   </script>
 </body>
 </html>
-
-
