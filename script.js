@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
-          app.echoToOE("❌ No valid layers found.");
+          /* app.echoToOE("❌ No valid layers found."); */
           alert("❌ No valid layers found.");
           return;
         }
@@ -77,13 +77,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup) {
-          app.echoToOE("❌ Folder 'anim_preview' not found.");
+          /* app.echoToOE("❌ Folder 'anim_preview' not found."); */
           alert("❌ Folder 'anim_preview' not found.");
           return;
         }
 
         if (animGroup.layers.length === 0) {
-          app.echoToOE("❌ 'anim_preview' folder is empty.");
+          /* app.echoToOE("❌ 'anim_preview' folder is empty."); */
           alert("❌ 'anim_preview' folder is empty.");
           return;
         }
