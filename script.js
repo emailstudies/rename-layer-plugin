@@ -1,15 +1,4 @@
-let stopFlag = false;
-
-function toggleUI(isPlaying) {
-  const controls = document.getElementById("controls");
-  if (isPlaying) {
-    controls.classList.add("compact");
-    document.getElementById("stopBtn").style.display = "inline";
-  } else {
-    controls.classList.remove("compact");
-    document.getElementById("stopBtn").style.display = "none";
-  }
-}
+let interval = null;
 
 function showOnlyFrame(index) {
   const script = `
@@ -18,7 +7,6 @@ function showOnlyFrame(index) {
       var animGroup = null;
       var bgLayer = null;
 
-      // Identify 'anim_preview' and 'Background' layers
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
@@ -74,7 +62,6 @@ function getFrameCount(callback) {
     if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
       const count = parseInt(event.data.split(" ")[2], 10);
       if (!isNaN(count)) {
-        console.log("🧮 Detected frames in anim_preview:", count);
         window.removeEventListener("message", handleCount);
         callback(count);
       }
@@ -84,48 +71,62 @@ function getFrameCount(callback) {
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay = 300) {
-  let i = total - 1;
+function cycleFrames(total, delay) {
+  let index = 0;
 
-  function next() {
-    if (stopFlag) {
-      console.log("⏹️ Animation stopped.");
-      toggleUI(false);
-      return;
+  clearInterval(interval);
+  interval = setInterval(() => {
+    showOnlyFrame(index);
+    index = (index + 1) % total;
+  }, delay);
+}
+
+function stopAnimation() {
+  clearInterval(interval);
+  toggleUI(false);
+}
+
+function toggleUI(isPlaying) {
+  const controls = document.getElementById("controls");
+  const stopBtn = document.getElementById("stopBtn");
+  const iframeWrapper = window.frameElement?.parentElement?.parentElement?.parentElement;
+
+  if (isPlaying) {
+    controls.classList.add("compact");
+    stopBtn.style.display = "inline";
+
+    // Resize iframe container
+    if (iframeWrapper) {
+      iframeWrapper.style.width = "100px";
+      iframeWrapper.style.height = "50px";
     }
+  } else {
+    controls.classList.remove("compact");
+    stopBtn.style.display = "none";
 
-    showOnlyFrame(i);
-    i--;
-    if (i < 0) i = total - 1; // loop
-
-    setTimeout(next, delay);
+    // Restore iframe container size
+    if (iframeWrapper) {
+      iframeWrapper.style.width = "389px";
+      iframeWrapper.style.height = "310px";
+    }
   }
-
-  next();
 }
 
 document.getElementById("renameBtn").onclick = () => {
   let fps = parseFloat(document.getElementById("newName").value);
-  if (isNaN(fps) || fps <= 0) {
-    fps = 3;
-  }
+  if (isNaN(fps) || fps <= 0) fps = 3;
   const delay = 1000 / fps;
-  stopFlag = false;
 
-  console.log("🎞️ Using FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
-
-  toggleUI(true);
+  console.log("🎞️ FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
 
   getFrameCount((frameCount) => {
     if (frameCount > 0) {
+      toggleUI(true);
       cycleFrames(frameCount, delay);
     } else {
       console.log("No frames found in anim_preview.");
-      toggleUI(false);
     }
   });
 };
 
-document.getElementById("stopBtn").onclick = () => {
-  stopFlag = true;
-};
+document.getElementById("stopBtn").onclick = stopAnimation;
