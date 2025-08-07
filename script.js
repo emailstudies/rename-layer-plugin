@@ -24,7 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ✅ Handle string messages
     if (typeof event.data === "string") {
-      // 👇 Ignore irrelevant JSON garbage
       if (event.data.trim().startsWith("{") && event.data.includes("Photopea")) {
         return; // ❌ ignore noisy metadata blobs
       }
@@ -96,6 +95,13 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // ✅ Send canvas dimensions first
+        parent.postMessage({
+          type: "[flipbook] canvas_info",
+          width: original.width,
+          height: original.height
+        }, "*");
+
         var tempDoc = app.documents.add(original.width, original.height, original.resolution, "_temp_export", NewDocumentMode.RGB);
 
         for (var i = animGroup.layers.length - 1; i >= 0; i--) {
@@ -131,4 +137,3 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[flipbook] 📤 Sent export script to Photopea");
   };
 });
-
