@@ -1,140 +1,79 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Flipbook Preview</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #111;
-      font-family: sans-serif;
-    }
-
-    /* Fixed UI overlay */
-    #ui {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 100;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-size: 16px;
-      pointer-events: none;
-    }
-
-    /* Fullscreen centered wrapper */
-    #canvasWrapper {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    /* Canvas scaling container */
-    #canvasScaler {
-      transform-origin: top left;
-    }
-
-    canvas {
-      background: white;
-      image-rendering: pixelated;
-      display: block;
-    }
-  </style>
-</head>
 <body>
-
-  <!-- Frame counter -->
-  <div id="ui">Frame: <span id="counter">0</span></div>
-
-  <!-- Canvas display area -->
-  <div id="canvasWrapper">
-    <div id="canvasScaler">
-      <canvas id="previewCanvas"></canvas>
-    </div>
-  </div>
+  <button id="renameBtn">Launch Preview</button>
 
   <script>
-    const canvas = document.getElementById("previewCanvas");
-    const ctx = canvas.getContext("2d");
-    const counter = document.getElementById("counter");
-    const scaler = document.getElementById("canvasScaler");
-    let images = [];
-    let index = 0;
-    const fps = 12;
+    document.getElementById('renameBtn').onclick = () => {
+      const preview = window.open("", "_blank");
+      preview.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Flipbook Preview</title>
+          <style>
+            html, body {
+              margin: 0; padding: 0;
+              width: 100%; height: 100%;
+              overflow: hidden;
+            }
+            #container {
+              position: fixed;
+              inset: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background: #111;
+            }
+            iframe {
+              border: none;
+            }
+            #toolbar {
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              background: rgba(0, 0, 0, 0.6);
+              color: white;
+              padding: 6px 12px;
+              border-radius: 4px;
+              font-size: 16px;
+              z-index: 10;
+              pointer-events: none;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="container">
+            <iframe id="previewFrame"></iframe>
+            <div id="toolbar">Frame: <span id="counter">0</span></div>
+          </div>
+          <script>
+            const iframe = document.getElementById('previewFrame');
+            const counter = document.getElementById('counter');
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        const srcList = event.data.images;
-        const originalWidth = event.data.width;
-        const originalHeight = event.data.height;
+            window.addEventListener("message", (event) => {
+              if (event.data?.type === 'setup') {
+                const { width, height, fps, images } = event.data;
+                const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+                iframe.style.width = width + 'px';
+                iframe.style.height = height + 'px';
+                iframe.style.transform = 'scale(' + scale + ')';
+                iframe.style.transformOrigin = 'top left';
 
-        images = srcList.map(src => {
-          const img = new Image();
-          img.src = src;
-          return img;
-        });
-
-        preloadAndAnimate(images, originalWidth, originalHeight);
-      }
-    });
-
-    function preloadAndAnimate(images, originalWidth, originalHeight) {
-      let loaded = 0;
-      images.forEach((img) => {
-        img.onload = () => {
-          loaded++;
-          if (loaded === images.length) {
-            startLoop(originalWidth, originalHeight);
-          }
-        };
-        img.onerror = () => console.warn("Image failed to load");
-      });
-    }
-
-    function startLoop(originalWidth, originalHeight) {
-      canvas.width = originalWidth;
-      canvas.height = originalHeight;
-
-      function resizeCanvas() {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        let scale = vw / originalWidth;
-
-        if (originalHeight * scale > vh) {
-          scale = vh / originalHeight;
-        }
-
-        scaler.style.transform = `scale(${scale})`;
-      }
-
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
-
-      setInterval(() => {
-        const img = images[index];
-        if (img && img.complete) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          counter.textContent = index + 1;
-        }
-        index = (index + 1) % images.length;
-      }, 1000 / fps);
-    }
+                let index = 0;
+                setInterval(() => {
+                  counter.textContent = index + 1;
+                  iframe.contentWindow.postMessage({ type: 'showFrame', index }, '*');
+                  index = (index + 1) % images.length;
+                }, 1000 / fps);
+                iframe.contentWindow.postMessage({ type: 'init', images }, '*');
+              }
+            });
+          </script>
+        </body>
+        </html>
+      `);
+    };
   </script>
-
 </body>
 </html>
