@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })();`;
 
     // ✅ Only open the preview tab AFTER we validate the structure from the script
-    previewWindow = window.open("about:blank"); // Temporary tab to keep popup behavior working
+    previewWindow = window.open("preview.html", "about:blank"); // Temporary tab to keep popup behavior working
 
     parent.postMessage(script, "*");
     console.log("[flipbook] 📤 Sent export script to Photopea");
