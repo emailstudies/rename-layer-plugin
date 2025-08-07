@@ -71,6 +71,7 @@
 
     let images = [];
     let index = 0;
+    let readyToAnimate = false;
 
     window.addEventListener("message", (event) => {
       if (event.data?.type === "images" && Array.isArray(event.data.images)) {
@@ -80,18 +81,23 @@
           img.src = src;
           return img;
         });
-        preloadAndAnimate(images);
+        preloadImages(images);
       }
     });
 
-    function preloadAndAnimate(images) {
-      let loaded = 0;
-      images.forEach((img, i) => {
+    function preloadImages(imageList) {
+      let loadedCount = 0;
+      const total = imageList.length;
+
+      imageList.forEach((img, i) => {
         img.onload = () => {
-          loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
-          if (loaded === images.length) {
-            startLoop();
+          loadedCount++;
+          if (loadedCount === total) {
+            // Once all are ready
+            readyToAnimate = true;
+            canvas.width = imageList[0].width;
+            canvas.height = imageList[0].height;
+            requestAnimationFrame(drawLoop);
           }
         };
         img.onerror = () => {
@@ -100,34 +106,33 @@
       });
     }
 
-    function startLoop() {
-      if (images.length === 0) return;
+    let lastTimestamp = 0;
+    const frameInterval = 1000 / fps;
 
-      canvas.width = images[0].width;
-      canvas.height = images[0].height;
-
-      let lastFrameTime = 0;
-      const frameDuration = 1000 / fps;
-
-      function drawFrame(timestamp) {
-        if (timestamp - lastFrameTime >= frameDuration) {
-          const img = images[index];
-          if (img && img.complete && img.naturalWidth > 0) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            counter.textContent = `Frame: ${index + 1}`;
-          }
-
-          index = (index + 1) % images.length;
-          lastFrameTime = timestamp;
-        }
-
-        requestAnimationFrame(drawFrame);
+    function drawLoop(timestamp) {
+      if (!readyToAnimate || images.length === 0) {
+        requestAnimationFrame(drawLoop);
+        return;
       }
 
-      requestAnimationFrame(drawFrame);
+      if (timestamp - lastTimestamp >= frameInterval) {
+        const img = images[index];
+
+        // Clear and fill white
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw current frame
+        ctx.drawImage(img, 0, 0);
+        counter.textContent = `Frame: ${index + 1}`;
+
+        // Advance
+        index = (index + 1) % images.length;
+        lastTimestamp = timestamp;
+      }
+
+      requestAnimationFrame(drawLoop);
     }
   </script>
 </body>
