@@ -15,7 +15,7 @@
       position: relative;
     }
 
-    /* 🔧 Toolbar stays fixed and clean */
+    /* 🔧 Toolbar stays fixed and unaffected by canvas scale */
     #toolbar {
       position: fixed;
       top: 0;
@@ -25,7 +25,7 @@
       align-items: center;
       padding: 8px;
       z-index: 1000;
-      pointer-events: none; /* allows canvas interaction below */
+      pointer-events: none;
     }
 
     #counter {
@@ -34,23 +34,23 @@
       color: white;
       border-radius: 4px;
       font-size: 16px;
-      pointer-events: auto; /* just this if you want interactivity */
+      pointer-events: auto;
     }
 
-    /* 🖼️ Canvas wrapper ensures centered scaling */
+    /* Canvas wrapper and transform scaling */
     #canvasWrapper {
       position: absolute;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
     }
 
-    canvas {
+    #previewCanvas {
       display: block;
       background: #fff;
       image-rendering: pixelated;
@@ -59,12 +59,12 @@
 </head>
 <body>
 
-  <!-- 🔧 UI stays fixed, like Photopea toolbars -->
+  <!-- 🔧 Fixed toolbar -->
   <div id="toolbar">
     <div id="counter">Frame: 0</div>
   </div>
 
-  <!-- 🖼️ Canvas centered and scaled -->
+  <!-- 🖼️ Canvas container -->
   <div id="canvasWrapper">
     <canvas id="previewCanvas"></canvas>
   </div>
@@ -98,7 +98,6 @@
       images.forEach((img, i) => {
         img.onload = () => {
           loaded++;
-          console.log(`✅ Loaded image ${i + 1}`);
           if (loaded === images.length) {
             startLoop(originalWidth, originalHeight);
           }
@@ -117,19 +116,19 @@
         const containerH = window.innerHeight;
         const aspect = originalWidth / originalHeight;
 
-        let newWidth = containerW;
-        let newHeight = containerW / aspect;
-
-        if (newHeight > containerH) {
-          newHeight = containerH;
-          newWidth = containerH * aspect;
-        }
-
-        canvas.style.width = `${newWidth}px`;
-        canvas.style.height = `${newHeight}px`;
-
+        // Base canvas size
         canvas.width = originalWidth;
         canvas.height = originalHeight;
+
+        // Compute scale
+        let scale = containerW / originalWidth;
+        if (originalHeight * scale > containerH) {
+          scale = containerH / originalHeight;
+        }
+
+        // Apply CSS transform (does NOT affect browser zoom)
+        canvas.style.transform = `scale(${scale})`;
+        canvas.style.transformOrigin = "top left";
       }
 
       resizeCanvas();
