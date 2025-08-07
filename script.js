@@ -10,8 +10,45 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageDataURLs = [];
   let previewWindow = null;
 
+  // ✅ Clear any existing listener first
+  if (window.__flipbookMessageListener__) {
+    window.removeEventListener("message", window.__flipbookMessageListener__);
+  }
+
+  // ✅ Define new listener and store globally
+  const handleMessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      collectedFrames.push(event.data);
+    } else if (typeof event.data === "string") {
+      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+
+      if (event.data === "✅ done") {
+        if (collectedFrames.length === 0) {
+          alert("❌ No frames received.");
+          return;
+        }
+
+        imageDataURLs = collectedFrames.map((ab) => {
+          const binary = String.fromCharCode(...new Uint8Array(ab));
+          return "data:image/png;base64," + btoa(binary);
+        });
+
+        if (previewWindow && previewWindow.postMessage) {
+          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
+        }
+
+        collectedFrames.length = 0;
+      } else if (event.data.startsWith("❌")) {
+        console.warn("[flipbook] ⚠️ Error:", event.data);
+      }
+    }
+  };
+
+  // ✅ Attach and remember listener
+  window.addEventListener("message", handleMessage);
+  window.__flipbookMessageListener__ = handleMessage;
+
   btn.onclick = () => {
-    // ✅ Open preview window *before* sending script
     previewWindow = window.open("preview.html");
 
     if (!previewWindow) {
@@ -82,33 +119,4 @@ document.addEventListener("DOMContentLoaded", () => {
     parent.postMessage(script, "*");
     console.log("[flipbook] 📤 Sent export script to Photopea");
   };
-
-  // ✅ Listener to receive frame PNGs and trigger preview
-  window.addEventListener("message", (event) => {
-    if (event.data instanceof ArrayBuffer) {
-      collectedFrames.push(event.data);
-    } else if (typeof event.data === "string") {
-      console.log("[flipbook] 📩 Message from Photopea:", event.data);
-
-      if (event.data === "✅ done") {
-        if (collectedFrames.length === 0) {
-          alert("❌ No frames received.");
-          return;
-        }
-
-        imageDataURLs = collectedFrames.map((ab) => {
-          const binary = String.fromCharCode(...new Uint8Array(ab));
-          return "data:image/png;base64," + btoa(binary);
-        });
-
-        if (previewWindow && previewWindow.postMessage) {
-          previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
-
-        collectedFrames.length = 0;
-      } else if (event.data.startsWith("❌")) {
-        console.warn("[flipbook] ⚠️ Error:", event.data);
-      }
-    }
-  });
 });
