@@ -2,25 +2,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("renameBtn");
 
   if (!btn) {
-    console.error("❌ Button #renameBtn not found");
+    console.error("❌ Button not found");
     return;
   }
 
-  const collectedFrames = [];
-  let imageDataURLs = [];
   let previewWindow = null;
+  let imageDataURLs = [];
+  let collectedFrames = [];
 
-  // ✅ Clear old listener
+  // 🔄 Store message listener reference globally
   if (window.__flipbookMessageListener__) {
     window.removeEventListener("message", window.__flipbookMessageListener__);
   }
 
-  // ✅ Handle incoming messages from Photopea
   const handleMessage = (event) => {
+    if (event.origin !== location.origin && event.origin !== "null") return; // safety
     if (event.data instanceof ArrayBuffer) {
       collectedFrames.push(event.data);
     } else if (typeof event.data === "string") {
-      console.log("[flipbook] 📩 Message from Photopea:", event.data);
+      console.log("[flipbook] 📩 Message:", event.data);
 
       if (event.data === "✅ done") {
         if (collectedFrames.length === 0) {
@@ -33,36 +33,32 @@ document.addEventListener("DOMContentLoaded", () => {
           return "data:image/png;base64," + btoa(binary);
         });
 
-        if (previewWindow && previewWindow.postMessage) {
+        // ⏳ Open preview.html and send frames when it's ready
+        previewWindow = window.open("preview.html", "_blank");
+        previewWindow.onload = () => {
           previewWindow.postMessage({ type: "images", images: imageDataURLs }, "*");
-        }
+        };
 
         collectedFrames.length = 0;
-
       } else if (event.data.startsWith("❌")) {
         alert(event.data);
         console.warn("[flipbook] ⚠️ Error:", event.data);
-        // 🔁 Prevent preview window from opening if error is found
-        if (previewWindow && !previewWindow.closed) {
-          previewWindow.close();
-          previewWindow = null;
-        }
       }
     }
   };
 
-  // ✅ Register listener
-  window.addEventListener("message", handleMessage);
+  // ✅ Attach listener only once
   window.__flipbookMessageListener__ = handleMessage;
+  window.addEventListener("message", handleMessage);
 
   btn.onclick = () => {
-    collectedFrames.length = 0;
+    collectedFrames = [];
 
     const script = `(function () {
       try {
         var original = app.activeDocument;
         if (!original || original.layers.length === 0) {
-          alert("❌ No valid layers found.");
+          app.echoToOE("❌ No valid layers found.");
           return;
         }
 
@@ -76,13 +72,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!animGroup) {
-          alert("❌ Folder 'anim_preview' not found.");
+          app.echoToOE("❌ Folder 'anim_preview' not found.");
           return;
         }
 
         if (animGroup.layers.length === 0) {
-          
-          alert("❌ 'anim_preview' folder is empty.");
+          app.echoToOE("❌ 'anim_preview' folder is empty.");
           return;
         }
 
@@ -104,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
           frameLayer.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING);
 
           app.activeDocument = tempDoc;
-          app.echoToOE("🖼️ Frame " + (animGroup.layers.length - i) + " exported");
           app.refresh();
           tempDoc.saveToOE("png");
         }
@@ -117,9 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
         app.echoToOE("❌ ERROR: " + e.message);
       }
     })();`;
-
-    // ✅ Only open the preview tab AFTER we validate the structure from the script
-    previewWindow = window.open("preview.html", "about:blank"); // Temporary tab to keep popup behavior working
 
     parent.postMessage(script, "*");
     console.log("[flipbook] 📤 Sent export script to Photopea");
