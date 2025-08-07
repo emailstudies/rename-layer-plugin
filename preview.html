@@ -1,92 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Frame Viewer</title>
+  <title>Flipbook Frame Viewer</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      background: #111;
+      background: #222;
+      overflow: hidden;
+      height: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
-      font-family: sans-serif;
       color: white;
+      font-family: sans-serif;
     }
     canvas {
-      background: white;
-      margin-bottom: 1em;
+      margin: 10px 0;
       image-rendering: pixelated;
+      background: white;
     }
     button {
       padding: 10px 20px;
       font-size: 16px;
       border: none;
-      border-radius: 8px;
-      background: #333;
+      border-radius: 6px;
+      background: #444;
       color: white;
       cursor: pointer;
     }
-    button:hover {
-      background: #555;
+    #frameInfo {
+      margin-bottom: 8px;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="256" height="256"></canvas>
-  <button id="nextBtn">Next</button>
+  <div id="frameInfo">Frame: 0 / 0</div>
+  <canvas id="canvas"></canvas>
+  <button id="nextBtn">Next Frame ▶️</button>
 
   <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const nextBtn = document.getElementById('nextBtn');
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const nextBtn = document.getElementById("nextBtn");
+    const frameInfo = document.getElementById("frameInfo");
 
     let images = [];
     let index = 0;
 
-    window.addEventListener("message", (event) => {
-      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
-        console.log("[preview] Received", event.data.images.length, "images");
-        loadImages(event.data.images);
-      }
-    });
-
-    function loadImages(dataURLs) {
-      images = dataURLs.map(src => {
-        const img = new Image();
-        img.src = src;
-        return img;
-      });
-
-      index = 0;
-      drawCurrentImage();
-    }
-
-    function drawCurrentImage() {
-      const img = images[index];
+    function showFrame(i) {
+      const img = images[i];
       if (!img) return;
 
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        console.log(`🖼️ Displaying frame ${index + 1} of ${images.length}`);
-      };
-
-      // If already loaded, draw immediately
-      if (img.complete && img.naturalWidth > 0) {
-        img.onload();
-      }
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      frameInfo.textContent = `Frame: ${i + 1} / ${images.length}`;
     }
 
-    nextBtn.addEventListener("click", () => {
+    nextBtn.onclick = () => {
       if (images.length === 0) return;
       index = (index + 1) % images.length;
-      drawCurrentImage();
+      showFrame(index);
+    };
+
+    window.addEventListener("message", (event) => {
+      if (event.data?.type === "images" && Array.isArray(event.data.images)) {
+        images = event.data.images.map(src => {
+          const img = new Image();
+          img.src = src;
+          return img;
+        });
+
+        let loaded = 0;
+        images.forEach((img, i) => {
+          img.onload = () => {
+            loaded++;
+            if (loaded === images.length) {
+              index = 0;
+              showFrame(index);
+            }
+          };
+        });
+      }
     });
   </script>
 </body>
