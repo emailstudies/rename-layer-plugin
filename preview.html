@@ -5,48 +5,31 @@
   <style>
     html, body {
       margin: 0;
-      padding: 0;
-      height: 100%;
       background: #111;
       overflow: hidden;
+      height: 100%;
+      display: flex;
+      justify-content: center; 
+      align-items: center;
       font-family: sans-serif;
     }
-
     #counter {
-      position: fixed;
+      position: absolute;
       top: 10px;
       left: 10px;
       background: rgba(0, 0, 0, 0.6);
       padding: 4px 8px;
       color: white;
       border-radius: 4px;
-      font-size: 16px;
-      z-index: 10;
     }
-
-    #canvas-wrapper {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     canvas {
-      display: block;
       image-rendering: pixelated;
-      background: white;
     }
   </style>
 </head>
 <body>
   <div id="counter">Frame: 0</div>
-  <div id="canvas-wrapper">
-    <canvas id="previewCanvas"></canvas>
-  </div>
+  <canvas id="previewCanvas"></canvas>
 
   <script>
     const canvas = document.getElementById("previewCanvas");
@@ -87,23 +70,8 @@
     function startLoop() {
       if (images.length === 0) return;
 
-      const baseWidth = images[0].width;
-      const baseHeight = images[0].height;
-
-      canvas.width = baseWidth;
-      canvas.height = baseHeight;
-
-      // Auto scale to fit within the viewport, maintaining aspect ratio
-      function resizeCanvas() {
-        const wrapper = document.getElementById("canvas-wrapper");
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const scale = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight, 1);
-        wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      }
-
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
+      canvas.width = images[0].width;
+      canvas.height = images[0].height;
 
       setInterval(() => {
         const img = images[index];
