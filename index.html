@@ -1,61 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Rename Layer</title>
+  <meta charset="utf-8">
+  <title>Rename Layer Plugin</title>
   <style>
     body {
       font-family: sans-serif;
-      padding: 10px;
+      font-size: 13px;
       margin: 0;
+      padding: 8px;
     }
-
-    #mainUI, #playbackUI {
+    .row {
+      margin-bottom: 8px;
+    }
+    input[type="text"] {
+      width: 80px;
+    }
+    #controls,
+    #playbackControls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    #playbackControls {
       display: none;
-    } 
-
-    #mainUI.active, #playbackUI.active {
-      display: block;
     }
-
-    input, button {
-      padding: 6px;
-      font-size: 14px;
-      margin-top: 8px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    #stopBtn, #nextBtn {
-      width: 40px;
+    #stopBtn {
+      width: 20px;
       height: 20px;
       font-size: 10px;
-      padding: 2px;
-      margin-right: 4px;
+      padding: 0;
     }
-
-    .row {
-      display: flex;
-      justify-content: center;
-      gap: 4px;
+    #nextBtn {
+      font-size: 10px;
+      padding: 2px 6px;
     }
   </style>
 </head>
 <body>
-
-  <!-- Main rename UI -->
-  <div id="mainUI" class="active">
-    <h3>Rename Selected Layer</h3>
-    <input id="newName" type="text" placeholder="Enter FPS" />
+  <div id="controls">
+    <input id="newName" type="text" placeholder="FPS (e.g. 3)" />
     <button id="renameBtn">Rename</button>
   </div>
 
-  <!-- Minimal playback UI -->
-  <div id="playbackUI">
-    <div class="row">
-      <button id="stopBtn">Stop</button>
-      <button id="nextBtn">Next</button>
-    </div>
+  <div id="playbackControls">
+    <button id="stopBtn">⏹</button>
+    <button id="nextBtn">▶</button>
   </div>
 
   <script src="script.js"></script>
