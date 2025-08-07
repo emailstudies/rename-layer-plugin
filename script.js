@@ -53,7 +53,7 @@ function cycleFrames(total, delay = 300) {
 }
 
 // Hook to a button
-document.getElementById("testVisibilityBtn").onclick = () => {
+document.getElementById("renameBtn").onclick = () => {
   const totalFrames = 5; // Change to your actual number of frames
   cycleFrames(totalFrames, 300);
 };
