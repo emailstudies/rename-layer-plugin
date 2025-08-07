@@ -24,16 +24,19 @@
       z-index: 10;
     }
 
-    #canvas-wrapper {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  #canvas-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    will-change: transform;
+    padding: 2vh 2vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
 
     canvas {
       display: block;
