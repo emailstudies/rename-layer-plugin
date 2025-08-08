@@ -73,33 +73,9 @@ function getFrameCount(callback) {
   parent.postMessage(script, "*");
 }
 
-// Normal forward playback: 0 → 1 → 2 → ... → N-1 → repeat
-function cycleFramesForward(total, delay) {
-  console.log(`▶️ cycleFramesForward playing frames 0 to ${total - 1} with delay ${delay.toFixed(1)} ms`);
-  let i = 0;
-
-  if (currentTimerId !== null) clearTimeout(currentTimerId);
-
-  function next() {
-    if (shouldStop) {
-      console.log("🛑 Animation stopped");
-      currentTimerId = null;
-      return;
-    }
-
-    showOnlyFrame(i);
-    console.log(`▶️ Showing frame ${i}`);
-
-    i = (i + 1) % total;
-    currentTimerId = setTimeout(next, delay);
-  }
-
-  next();
-}
-
-// Reverse playback: N-1 → ... → 2 → 1 → 0 → repeat
-function cycleFramesReverse(total, delay) {
-  console.log(`▶️ cycleFramesReverse playing frames ${total - 1} down to 0 with delay ${delay.toFixed(1)} ms`);
+// Default backward playback: last frame → first frame → repeat
+function cycleFramesBackward(total, delay) {
+  console.log(`▶️ cycleFramesBackward playing frames ${total - 1} down to 0, delay ${delay.toFixed(1)} ms`);
   let i = total - 1;
 
   if (currentTimerId !== null) clearTimeout(currentTimerId);
@@ -123,11 +99,10 @@ function cycleFramesReverse(total, delay) {
   next();
 }
 
-// Ping-Pong playback: 0 → 1 → ... → N-1 → N-2 → ... → 1 → 0 → repeat
-function cycleFramesPingPong(total, delay) {
-  console.log(`▶️ cycleFramesPingPong playing frames 0→${total - 1}→0 ping-pong with delay ${delay.toFixed(1)} ms`);
+// Forward playback: 0 → 1 → 2 → ... → N-1 → repeat
+function cycleFramesForward(total, delay) {
+  console.log(`▶️ cycleFramesForward playing frames 0 to ${total - 1} with delay ${delay.toFixed(1)} ms`);
   let i = 0;
-  let forward = true;
 
   if (currentTimerId !== null) clearTimeout(currentTimerId);
 
@@ -141,25 +116,18 @@ function cycleFramesPingPong(total, delay) {
     showOnlyFrame(i);
     console.log(`▶️ Showing frame ${i}`);
 
-    if (forward) {
-      i++;
-      if (i >= total - 1) forward = false;
-    } else {
-      i--;
-      if (i <= 0) forward = true;
-    }
-
+    i = (i + 1) % total;
     currentTimerId = setTimeout(next, delay);
   }
 
   next();
 }
 
-// Reverse + Ping-Pong playback: N-1 → N-2 → ... → 0 → 1 → ... → N-1 → repeat
-function cycleFramesPingPongReverse(total, delay) {
-  console.log(`▶️ cycleFramesPingPongReverse playing frames ${total - 1}→0→${total - 1} ping-pong reversed with delay ${delay.toFixed(1)} ms`);
+// Ping-Pong starting backward: last frame → ... → first → 1 → ... → last - 1 → repeat
+function cycleFramesPingPongBackward(total, delay) {
+  console.log(`▶️ cycleFramesPingPongBackward playing frames ${total - 1}→0→${total - 1} ping-pong backward, delay ${delay.toFixed(1)} ms`);
   let i = total - 1;
-  let forward = false;
+  let forward = false; // initially backward
 
   if (currentTimerId !== null) clearTimeout(currentTimerId);
 
@@ -186,6 +154,39 @@ function cycleFramesPingPongReverse(total, delay) {
 
   next();
 }
+
+// Ping-Pong starting forward: 0 → 1 → ... → last → last - 1 → ... → 0 → repeat
+function cycleFramesPingPongForward(total, delay) {
+  console.log(`▶️ cycleFramesPingPongForward playing frames 0→${total - 1}→0 ping-pong forward, delay ${delay.toFixed(1)} ms`);
+  let i = 0;
+  let forward = true; // initially forward
+
+  if (currentTimerId !== null) clearTimeout(currentTimerId);
+
+  function next() {
+    if (shouldStop) {
+      console.log("🛑 Animation stopped");
+      currentTimerId = null;
+      return;
+    }
+
+    showOnlyFrame(i);
+    console.log(`▶️ Showing frame ${i}`);
+
+    if (forward) {
+      i++;
+      if (i >= total - 1) forward = false;
+    } else {
+      i--;
+      if (i <= 0) forward = true;
+    }
+
+    currentTimerId = setTimeout(next, delay);
+  }
+
+  next();
+};
+
 
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
@@ -214,13 +215,13 @@ document.getElementById("renameBtn").onclick = () => {
     console.log(`▶️ Starting playback with fps=${fps}, reverse=${reverse}, pingpong=${pingpong}`);
 
     if (pingpong && reverse) {
-      cycleFramesPingPongReverse(frameCount, delay);
+      cycleFramesPingPongForward(frameCount, delay); // PingPong starting forward is "reverse + pingpong" here
     } else if (pingpong) {
-      cycleFramesPingPong(frameCount, delay);
+      cycleFramesPingPongBackward(frameCount, delay);
     } else if (reverse) {
-      cycleFramesReverse(frameCount, delay);
+      cycleFramesForward(frameCount, delay); // reverse checkbox means forward playback (opposite of default backward)
     } else {
-      cycleFramesForward(frameCount, delay);
+      cycleFramesBackward(frameCount, delay); // default playback backward
     }
   });
 };
