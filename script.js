@@ -2,10 +2,10 @@ document.getElementById("renameBtn").addEventListener("click", () => {
   console.log("Rename clicked - compacting panel");
 
   if (window.frameElement) {
-    window.frameElement.style.height = "20px"; // compact height
-    window.frameElement.style.width = "300px"; // optional
-    console.log("Panel resized from inside iframe");
+    window.frameElement.style.width = "200px";
+    window.frameElement.style.height = "40px";
+    console.log("Applied resize directly to iframe");
   } else {
-    console.warn("No frameElement found — not inside iframe?");
+    console.warn("Not inside Photopea or iframe");
   }
 });
