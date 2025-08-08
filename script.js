@@ -1,82 +1,120 @@
-// script.js — toggle compact panel via host-executed script
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("renameBtn");
-  if (!btn) return console.warn("renameBtn not found");
+let shouldStop = false;
 
-  // Pick a short, unique substring that matches your plugin iframe src.
-  // e.g. your GitHub Pages repo path "rename-layer-plugin"
-  const pluginUrlPart = "rename-layer-plugin";
+function showOnlyFrame(index) {
+  const script = `
+    (function () {
+      var doc = app.activeDocument;
+      var animGroup = null;
+      var bgLayer = null;
 
-  let compact = false;
+      // Identify 'anim_preview' and 'Background' layers
+      for (var i = 0; i < doc.layers.length; i++) {
+        var layer = doc.layers[i];
+        if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
+          animGroup = layer;
+        } else if (layer.name.toLowerCase() === "background") {
+          bgLayer = layer;
+        } else {
+          // Hide all other top-level layers
+          layer.visible = false;
+        }
+      }
 
-  btn.addEventListener("click", () => {
-    // toggle state
-    compact = !compact;
+      if (!animGroup) {
+        app.echoToOE("❌ 'anim_preview' not found.");
+        return;
+      }
 
-    if (compact) {
-      // compact: ask parent (Photopea) to run a script that shrinks the panel
-      const script = `(function(){
-        try {
-          var iframes = document.querySelectorAll("iframe");
-          for (var i=0; i<iframes.length; i++){
-            var src = iframes[i].src || "";
-            if (src.indexOf("${pluginUrlPart}") !== -1) {
-              var panel = iframes[i].closest(".body") || iframes[i].parentElement;
-              if (!panel) panel = iframes[i].parentElement;
-              // save original inline styles once
-              if (!panel._origStyles) {
-                panel._origStyles = {
-                  width: panel.style.width || "",
-                  height: panel.style.height || "",
-                  minWidth: panel.style.minWidth || "",
-                  maxWidth: panel.style.maxWidth || "",
-                  overflow: panel.style.overflow || ""
-                };
-              }
-              // apply compact size (adjust px values as you like)
-              panel.style.width = "200px";
-              panel.style.height = "20px";
-              panel.style.minWidth = "200px";
-              panel.style.maxWidth = "200px";
-              panel.style.overflow = "hidden";
-              iframes[i].style.width = "200px";
-              iframes[i].style.height = "20px";
-              break;
-            }
-          }
-        } catch(e) { console.error(e); }
-      })();`;
+      animGroup.visible = true;
+      if (bgLayer) bgLayer.visible = true;
 
-      parent.postMessage(script, "*");
-      console.log("Compact resize request sent to Photopea host");
-    } else {
-      // restore: ask parent to restore saved inline styles
-      const script = `(function(){
-        try {
-          var iframes = document.querySelectorAll("iframe");
-          for (var i=0; i<iframes.length; i++){
-            var src = iframes[i].src || "";
-            if (src.indexOf("${pluginUrlPart}") !== -1) {
-              var panel = iframes[i].closest(".body") || iframes[i].parentElement;
-              if (!panel) panel = iframes[i].parentElement;
-              if (panel && panel._origStyles) {
-                panel.style.width = panel._origStyles.width;
-                panel.style.height = panel._origStyles.height;
-                panel.style.minWidth = panel._origStyles.minWidth || "";
-                panel.style.maxWidth = panel._origStyles.maxWidth || "";
-                panel.style.overflow = panel._origStyles.overflow || "";
-                // also restore iframe inline styles
-                iframes[i].style.width = panel.style.width || "";
-                iframes[i].style.height = panel.style.height || "";
-              }
-              break;
-            }
-          }
-        } catch(e) { console.error(e); }
-      })();`;
+      for (var i = 0; i < animGroup.layers.length; i++) {
+        animGroup.layers[i].visible = false;
+      }
 
-      parent.postMessage(script, "*");
-      console.log("Restore resize request sent to Photopea host");
+      if (${index} < animGroup.layers.length) {
+        animGroup.layers[${index}].visible = true;
+        app.echoToOE("👁️ Showing frame ${index}");
+      }
+    })();`;
+
+  parent.postMessage(script, "*");
+}
+
+function getFrameCount(callback) {
+  const script = `
+    (function () {
+      var doc = app.activeDocument;
+      var animGroup = null;
+      for (var i = 0; i < doc.layers.length; i++) {
+        var layer = doc.layers[i];
+        if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
+          animGroup = layer;
+          break;
+        }
+      }
+      if (!animGroup) {
+        app.echoToOE("❌ 'anim_preview' not found.");
+      } else {
+        app.echoToOE("✅ count " + animGroup.layers.length);
+      }
+    })();`;
+
+  window.addEventListener("message", function handleCount(event) {
+    if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
+      const count = parseInt(event.data.split(" ")[2], 10);
+      if (!isNaN(count)) {
+        console.log("🧮 Detected frames in anim_preview:", count);
+        window.removeEventListener("message", handleCount);
+        callback(count);
+      }
     }
   });
-});
+
+  parent.postMessage(script, "*");
+}
+
+function cycleFrames(total, delay = 300) {
+  let i = total - 1;
+
+  function next() {
+    if (shouldStop) {
+      console.log("🛑 Animation loop stopped.");
+      return;
+    }
+
+    showOnlyFrame(i);
+    i--;
+    if (i < 0) i = total - 1; // loop back to end
+
+    setTimeout(next, delay);
+  }
+
+  next();
+}
+
+// ▶️ Play button
+document.getElementById("renameBtn").onclick = () => {
+  shouldStop = false;
+  let fps = parseFloat(document.getElementById("newName").value);
+  if (isNaN(fps) || fps <= 0) {
+    fps = 3;
+  }
+  const delay = 1000 / fps;
+
+  console.log("🎞️ Using FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
+
+  getFrameCount((frameCount) => {
+    if (frameCount > 0) {
+      cycleFrames(frameCount, delay);
+    } else {
+      console.log("No frames found in anim_preview.");
+    }
+  });
+};
+
+// 🟥 Stop button
+document.getElementById("stopBtn").onclick = () => {
+  shouldStop = true;
+};
+
