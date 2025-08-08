@@ -1,31 +1,22 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const renameBtn = document.getElementById("renameBtn");
-    const stopBtn = document.getElementById("stopBtn");
+// resize_panel.js
+document.addEventListener("DOMContentLoaded", function () {
+    const resizeBtn = document.getElementById("resizeBtn");
 
-    renameBtn.addEventListener("click", shrinkPanelForPlayback);
-    stopBtn.addEventListener("click", restorePanel);
+    if (!resizeBtn) {
+        console.error("Button #resizeBtn not found");
+        return;
+    }
+
+    resizeBtn.addEventListener("click", function () {
+        if (!window.frameElement) {
+            console.warn("Not inside an iframe — can't resize.");
+            return;
+        }
+
+        // Example: Shrink to 150x40
+        window.frameElement.style.width = "150px";
+        window.frameElement.style.height = "40px";
+
+        console.log("📏 Panel resized to 150x40");
+    });
 });
-
-function shrinkPanelForPlayback() {
-    // Hide main controls, show playback controls
-    document.getElementById("controls").style.display = "none";
-    document.getElementById("playbackControls").style.display = "flex";
-
-    // Resize the outer Photopea panel (.body element)
-    const panelBody = window.frameElement.closest(".body");
-    if (panelBody) {
-        panelBody.style.width = "80px"; // adjust as needed
-    }
-}
-
-function restorePanel() {
-    // Restore controls
-    document.getElementById("controls").style.display = "flex";
-    document.getElementById("playbackControls").style.display = "none";
-
-    // Reset panel width
-    const panelBody = window.frameElement.closest(".body");
-    if (panelBody) {
-        panelBody.style.width = "";
-    }
-}
