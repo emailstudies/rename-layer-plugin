@@ -8,16 +8,38 @@
       font-family: sans-serif;
       padding: 20px;
     }
-
-   
-
-</style>
+    label {
+      display: inline-block;
+      margin-top: 10px;
+      margin-right: 5px;
+    }
+    input {
+      width: 60px;
+      margin-right: 15px;
+    }
+    button {
+      margin-top: 15px;
+      margin-right: 10px;
+      padding: 5px 15px;
+    }
+  </style>
 </head>
 <body>
 
   <h2>Rename Selected Layer</h2>
-  <input id="newName" type="number" placeholder="FPS (frames per second)" value="12" min="1" />
-  <button id="renameBtn">Rename</button>
+
+  <label for="fpsInput">FPS (frames per second):</label>
+  <input id="fpsInput" type="number" placeholder="FPS" value="12" min="1" />
+
+  <label for="startFrameInput">Start Frame:</label>
+  <input id="startFrameInput" type="number" placeholder="Start Frame" value="1" min="1" />
+
+  <label for="stopFrameInput">Stop Frame:</label>
+  <input id="stopFrameInput" type="number" placeholder="Stop Frame" value="1" min="1" />
+
+  <br />
+
+  <button id="renameBtn">Play</button>
   <button id="stopBtn">Stop</button>
 
   <script src="script.js"></script>
