@@ -73,24 +73,47 @@ function getFrameCount(callback) {
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay) {
-  console.log(`▶️ cycleFrames playing full animation with total=${total}, delay=${delay.toFixed(1)}ms`);
-  let i = total - 1;
+// Normal forward playback: 0 → 1 → 2 → ... → N-1 → repeat
+function cycleFramesForward(total, delay) {
+  console.log(`▶️ cycleFramesForward playing frames 0 to ${total - 1} with delay ${delay.toFixed(1)} ms`);
+  let i = 0;
 
-  if (currentTimerId !== null) {
-    clearTimeout(currentTimerId);
-    currentTimerId = null;
-  }
+  if (currentTimerId !== null) clearTimeout(currentTimerId);
 
   function next() {
     if (shouldStop) {
-      console.log("🛑 Animation loop stopped.");
+      console.log("🛑 Animation stopped");
       currentTimerId = null;
       return;
     }
 
     showOnlyFrame(i);
-    console.log(`▶️ cycleFrames showing frame index: ${i}`);
+    console.log(`▶️ Showing frame ${i}`);
+
+    i = (i + 1) % total;
+    currentTimerId = setTimeout(next, delay);
+  }
+
+  next();
+}
+
+// Reverse playback: N-1 → ... → 2 → 1 → 0 → repeat
+function cycleFramesReverse(total, delay) {
+  console.log(`▶️ cycleFramesReverse playing frames ${total - 1} down to 0 with delay ${delay.toFixed(1)} ms`);
+  let i = total - 1;
+
+  if (currentTimerId !== null) clearTimeout(currentTimerId);
+
+  function next() {
+    if (shouldStop) {
+      console.log("🛑 Animation stopped");
+      currentTimerId = null;
+      return;
+    }
+
+    showOnlyFrame(i);
+    console.log(`▶️ Showing frame ${i}`);
+
     i--;
     if (i < 0) i = total - 1;
 
@@ -100,27 +123,63 @@ function cycleFrames(total, delay) {
   next();
 }
 
-function cycleFramesRange(start, stop, delay) {
-  console.log(`▶️ cycleFramesRange playing frames backward from ${stop} to ${start}, delay=${delay.toFixed(1)}ms`);
-  let i = stop - 1;
-  const startIndex = start - 1;
+// Ping-Pong playback: 0 → 1 → ... → N-1 → N-2 → ... → 1 → 0 → repeat
+function cycleFramesPingPong(total, delay) {
+  console.log(`▶️ cycleFramesPingPong playing frames 0→${total - 1}→0 ping-pong with delay ${delay.toFixed(1)} ms`);
+  let i = 0;
+  let forward = true;
 
-  if (currentTimerId !== null) {
-    clearTimeout(currentTimerId);
-    currentTimerId = null;
-  }
+  if (currentTimerId !== null) clearTimeout(currentTimerId);
 
   function next() {
     if (shouldStop) {
-      console.log("🛑 Animation loop stopped.");
+      console.log("🛑 Animation stopped");
       currentTimerId = null;
       return;
     }
 
     showOnlyFrame(i);
-    console.log(`▶️ cycleFramesRange showing frame index: ${i}`);
-    i--;
-    if (i < startIndex) i = stop - 1;
+    console.log(`▶️ Showing frame ${i}`);
+
+    if (forward) {
+      i++;
+      if (i >= total - 1) forward = false;
+    } else {
+      i--;
+      if (i <= 0) forward = true;
+    }
+
+    currentTimerId = setTimeout(next, delay);
+  }
+
+  next();
+}
+
+// Reverse + Ping-Pong playback: N-1 → N-2 → ... → 0 → 1 → ... → N-1 → repeat
+function cycleFramesPingPongReverse(total, delay) {
+  console.log(`▶️ cycleFramesPingPongReverse playing frames ${total - 1}→0→${total - 1} ping-pong reversed with delay ${delay.toFixed(1)} ms`);
+  let i = total - 1;
+  let forward = false;
+
+  if (currentTimerId !== null) clearTimeout(currentTimerId);
+
+  function next() {
+    if (shouldStop) {
+      console.log("🛑 Animation stopped");
+      currentTimerId = null;
+      return;
+    }
+
+    showOnlyFrame(i);
+    console.log(`▶️ Showing frame ${i}`);
+
+    if (forward) {
+      i++;
+      if (i >= total - 1) forward = false;
+    } else {
+      i--;
+      if (i <= 0) forward = true;
+    }
 
     currentTimerId = setTimeout(next, delay);
   }
@@ -149,31 +208,19 @@ document.getElementById("renameBtn").onclick = () => {
       return;
     }
 
-    const startInput = document.getElementById("startFrameInput");
-    const stopInput = document.getElementById("stopFrameInput");
+    const reverse = document.getElementById("reverseChk").checked;
+    const pingpong = document.getElementById("pingpongChk").checked;
 
-    let start = parseInt(startInput.value, 10);
-    let stop = parseInt(stopInput.value, 10);
+    console.log(`▶️ Starting playback with fps=${fps}, reverse=${reverse}, pingpong=${pingpong}`);
 
-    // Validate and set defaults if empty or invalid
-    if (isNaN(start) || start < 1 || start > frameCount) start = 1;
-    if (isNaN(stop) || stop < 1 || stop > frameCount) stop = frameCount;
-
-    if (stop < start) {
-      console.log("⚠️ Stop frame less than start frame, adjusting stop to start.");
-      stop = start;
-    }
-
-    // Update inputs so user sees the corrected range
-    startInput.value = start;
-    stopInput.value = stop;
-
-    console.log(`▶️ Playing frames from ${start} to ${stop} at ${fps} FPS`);
-
-    if (start === 1 && stop === frameCount) {
-      cycleFrames(frameCount, delay);
+    if (pingpong && reverse) {
+      cycleFramesPingPongReverse(frameCount, delay);
+    } else if (pingpong) {
+      cycleFramesPingPong(frameCount, delay);
+    } else if (reverse) {
+      cycleFramesReverse(frameCount, delay);
     } else {
-      cycleFramesRange(start, stop, delay);
+      cycleFramesForward(frameCount, delay);
     }
   });
 };
@@ -186,5 +233,5 @@ document.getElementById("stopBtn").onclick = () => {
     currentTimerId = null;
   }
 
-  console.log("🛑 User requested to stop animation");
+  console.log("🛑 Animation stopped by user");
 };
