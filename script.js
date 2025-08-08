@@ -1,4 +1,5 @@
 let shouldStop = false;
+let currentTimerId = null;
 
 function showOnlyFrame(index) {
   const script = `
@@ -72,35 +73,47 @@ function getFrameCount(callback) {
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay = 1000 / 12) {
+function cycleFrames(total, delay) {
   console.log(`▶️ cycleFrames playing full animation with total=${total}, delay=${delay.toFixed(1)}ms`);
   let i = total - 1;
+
+  if (currentTimerId !== null) {
+    clearTimeout(currentTimerId);
+    currentTimerId = null;
+  }
 
   function next() {
     if (shouldStop) {
       console.log("🛑 Animation loop stopped.");
+      currentTimerId = null;
       return;
     }
 
     showOnlyFrame(i);
     console.log(`▶️ cycleFrames showing frame index: ${i}`);
     i--;
-    if (i < 0) i = total - 1; // loop back to end
+    if (i < 0) i = total - 1;
 
-    setTimeout(next, delay);
+    currentTimerId = setTimeout(next, delay);
   }
 
   next();
 }
 
-function cycleFramesRange(start, stop, delay = 1000 / 12) {
-  console.log(`▶️ cycleFramesRange playing frames from ${start} to ${stop}, delay=${delay.toFixed(1)}ms`);
+function cycleFramesRange(start, stop, delay) {
+  console.log(`▶️ cycleFramesRange playing frames backward from ${stop} to ${start}, delay=${delay.toFixed(1)}ms`);
   let i = stop - 1;
   const startIndex = start - 1;
+
+  if (currentTimerId !== null) {
+    clearTimeout(currentTimerId);
+    currentTimerId = null;
+  }
 
   function next() {
     if (shouldStop) {
       console.log("🛑 Animation loop stopped.");
+      currentTimerId = null;
       return;
     }
 
@@ -109,7 +122,7 @@ function cycleFramesRange(start, stop, delay = 1000 / 12) {
     i--;
     if (i < startIndex) i = stop - 1;
 
-    setTimeout(next, delay);
+    currentTimerId = setTimeout(next, delay);
   }
 
   next();
@@ -117,6 +130,11 @@ function cycleFramesRange(start, stop, delay = 1000 / 12) {
 
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
+
+  if (currentTimerId !== null) {
+    clearTimeout(currentTimerId);
+    currentTimerId = null;
+  }
 
   let fps = parseFloat(document.getElementById("fpsInput").value);
   if (isNaN(fps) || fps <= 0) {
@@ -137,7 +155,7 @@ document.getElementById("renameBtn").onclick = () => {
     let start = parseInt(startInput.value, 10);
     let stop = parseInt(stopInput.value, 10);
 
-    // If inputs are empty or invalid, fallback to full range
+    // Validate and set defaults if empty or invalid
     if (isNaN(start) || start < 1 || start > frameCount) start = 1;
     if (isNaN(stop) || stop < 1 || stop > frameCount) stop = frameCount;
 
@@ -146,7 +164,7 @@ document.getElementById("renameBtn").onclick = () => {
       stop = start;
     }
 
-    // Update inputs to valid values so user sees corrected numbers
+    // Update inputs so user sees the corrected range
     startInput.value = start;
     stopInput.value = stop;
 
@@ -162,5 +180,11 @@ document.getElementById("renameBtn").onclick = () => {
 
 document.getElementById("stopBtn").onclick = () => {
   shouldStop = true;
+
+  if (currentTimerId !== null) {
+    clearTimeout(currentTimerId);
+    currentTimerId = null;
+  }
+
   console.log("🛑 User requested to stop animation");
 };
