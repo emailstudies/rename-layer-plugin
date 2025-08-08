@@ -7,7 +7,6 @@ function showOnlyFrame(index) {
       var animGroup = null;
       var bgLayer = null;
 
-      // Identify 'anim_preview' and 'Background' layers
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
@@ -15,7 +14,6 @@ function showOnlyFrame(index) {
         } else if (layer.name.toLowerCase() === "background") {
           bgLayer = layer;
         } else {
-          // Hide all other top-level layers
           layer.visible = false;
         }
       }
@@ -74,8 +72,8 @@ function getFrameCount(callback) {
   parent.postMessage(script, "*");
 }
 
-function cycleFrames(total, delay = 300) {
-  let i = total - 1;
+function cycleFramesRange(startIndex, stopIndex, delay = 300) {
+  let i = startIndex;
 
   function next() {
     if (shouldStop) {
@@ -84,8 +82,8 @@ function cycleFrames(total, delay = 300) {
     }
 
     showOnlyFrame(i);
-    i--;
-    if (i < 0) i = total - 1; // loop back to end
+    i++;
+    if (i > stopIndex) i = startIndex;
 
     setTimeout(next, delay);
   }
@@ -93,28 +91,42 @@ function cycleFrames(total, delay = 300) {
   next();
 }
 
-// ▶️ Play button
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
-  let fps = parseFloat(document.getElementById("newName").value);
-  if (isNaN(fps) || fps <= 0) {
-    fps = 3;
-  }
+  let fps = parseFloat(document.getElementById("fpsInput").value);
+  if (isNaN(fps) || fps <= 0) fps = 3;
   const delay = 1000 / fps;
-
-  console.log("🎞️ Using FPS:", fps, "→ Delay:", delay.toFixed(1), "ms");
 
   getFrameCount((frameCount) => {
     if (frameCount > 0) {
-      cycleFrames(frameCount, delay);
+      // Update stop frame max and clamp
+      const stopInput = document.getElementById("stopFrameInput");
+      stopInput.max = frameCount;
+      if (parseInt(stopInput.value, 10) > frameCount) {
+        stopInput.value = frameCount;
+      }
+      if (!stopInput.value) stopInput.value = frameCount;
+
+      // Get start and stop frame from user input, clamp and fix invalid ranges
+      let start = parseInt(document.getElementById("startFrameInput").value, 10);
+      let stop = parseInt(stopInput.value, 10);
+
+      if (isNaN(start) || start < 1) start = 1;
+      if (isNaN(stop) || stop > frameCount) stop = frameCount;
+      if (stop < start) stop = start;
+
+      // Convert to zero-based index
+      const startIndex = start - 1;
+      const stopIndex = stop - 1;
+
+      console.log(`🎞️ Playing frames ${start} to ${stop} at FPS:`, fps, "→ Delay:", delay.toFixed(1), "ms");
+      cycleFramesRange(startIndex, stopIndex, delay);
     } else {
       console.log("No frames found in anim_preview.");
     }
   });
 };
 
-// 🟥 Stop button
 document.getElementById("stopBtn").onclick = () => {
   shouldStop = true;
 };
-
