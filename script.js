@@ -11,7 +11,7 @@ let currentTimerId = null;
  */
 function showOnlyFrame(index) {
   const script = `
-    (function () {
+    (function () { 
       var doc = app.activeDocument;
       var animGroup = null;
       var bgLayer = null;
