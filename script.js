@@ -1,5 +1,5 @@
 let shouldStop = false;
-let currentTimerId = null;
+let currentTimerId = null; 
 
 /**
  * showOnlyFrame
