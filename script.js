@@ -1,17 +1,13 @@
 // script.js
-
-// Attach event listeners after DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
     const renameBtn = document.getElementById("renameBtn");
     const stopBtn = document.getElementById("stopBtn");
 
     renameBtn.addEventListener("click", () => {
-        // Simulate starting playback — shrink panel
         shrinkPanelForPlayback();
     });
 
     stopBtn.addEventListener("click", () => {
-        // Restore panel size and UI
         restorePanel();
     });
 });
@@ -21,10 +17,12 @@ function shrinkPanelForPlayback() {
     document.getElementById("controls").style.display = "none";
     document.getElementById("playbackControls").style.display = "flex";
 
-    // Shrink iframe size to fit playback controls
-    // (Hardcoded minimal size for now)
-    window.frameElement.style.width = "60px";
-    window.frameElement.style.height = "30px";
+    // Get the outer panel container (Photopea wraps iframe in a .body div)
+    const panelBody = window.frameElement.parentElement;
+    if (panelBody) {
+        panelBody.style.width = "60px";   // narrow width for two buttons
+        panelBody.style.height = "30px";  // just enough height for buttons
+    }
 }
 
 function restorePanel() {
@@ -32,7 +30,10 @@ function restorePanel() {
     document.getElementById("controls").style.display = "flex";
     document.getElementById("playbackControls").style.display = "none";
 
-    // Clear inline sizing so Photopea auto-sizes again
-    window.frameElement.style.width = "";
-    window.frameElement.style.height = "";
+    // Reset the panel container size so Photopea auto-sizes again
+    const panelBody = window.frameElement.parentElement;
+    if (panelBody) {
+        panelBody.style.width = "";
+        panelBody.style.height = "";
+    }
 }
