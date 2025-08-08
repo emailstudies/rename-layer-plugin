@@ -1,11 +1,11 @@
 document.getElementById("renameBtn").addEventListener("click", () => {
-  console.log("Rename clicked - requesting compact panel");
+  console.log("Rename clicked - compacting panel");
 
-  // Tell Photopea host to resize the plugin panel
-  parent.postMessage(
-    { type: "resize", width: 300, height: 20 }, // compact height here
-    "*"
-  );
-
-  console.log("Compact resize request sent to Photopea");
+  if (window.frameElement) {
+    window.frameElement.style.height = "20px"; // compact height
+    window.frameElement.style.width = "300px"; // optional
+    console.log("Panel resized from inside iframe");
+  } else {
+    console.warn("No frameElement found — not inside iframe?");
+  }
 });
