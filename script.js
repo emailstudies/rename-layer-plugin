@@ -1,22 +1,26 @@
-// resize_panel.js
-document.addEventListener("DOMContentLoaded", function () {
+// panel_resize.js
+
+document.addEventListener("DOMContentLoaded", () => {
     const resizeBtn = document.getElementById("renameBtn");
 
     if (!resizeBtn) {
-        console.error("Button #renameBtn not found");
+        console.warn("⚠️ No button with ID 'resizeBtn' found.");
         return;
     }
 
-    resizeBtn.addEventListener("click", function () {
-        if (!window.frameElement) {
-            console.warn("Not inside an iframe — can't resize.");
-            return;
+    resizeBtn.addEventListener("click", () => {
+        // Check if we're inside an iframe
+        if (window.frameElement) {
+            try {
+                // Set new size for plugin panel iframe
+                window.frameElement.style.width = "200px";   // or any width you want
+                window.frameElement.style.height = "40px";   // collapsed height
+                console.log("✅ Panel resized inside Photopea iframe.");
+            } catch (err) {
+                console.error("❌ Could not resize iframe:", err);
+            }
+        } else {
+            console.warn("Not inside an iframe — can't resize panel here.");
         }
-
-        // Example: Shrink to 150x40
-        window.frameElement.style.width = "150px";
-        window.frameElement.style.height = "40px";
-
-        console.log("📏 Panel resized to 150x40");
     });
 });
