@@ -235,6 +235,10 @@ function cycleFramesRange(start, stop, delay, reverse, pingpong, frameCount) {
   next();
 }
 
+
+// adding that the fps selector will be greyed out if manual delay is selected
+document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
+
 // Play button event handler: get frame count, parse inputs, start animation
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
