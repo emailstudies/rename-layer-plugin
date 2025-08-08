@@ -115,22 +115,6 @@ function cycleFramesRange(start, stop, delay = 1000 / 12) {
   next();
 }
 
-function setDefaultStartStop() {
-  getFrameCount((frameCount) => {
-    const startInput = document.getElementById("startFrameInput");
-    const stopInput = document.getElementById("stopFrameInput");
-
-    startInput.min = 1;
-    stopInput.min = 1;
-    stopInput.max = frameCount;
-
-    if (!startInput.value || startInput.value < 1) startInput.value = 1;
-    if (!stopInput.value || stopInput.value > frameCount) stopInput.value = frameCount;
-
-    console.log(`⚙️ Default Start set to 1 and Stop set to ${frameCount}`);
-  });
-}
-
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
 
@@ -142,36 +126,36 @@ document.getElementById("renameBtn").onclick = () => {
   const delay = 1000 / fps;
 
   getFrameCount((frameCount) => {
-    if (frameCount > 0) {
-      const startInput = document.getElementById("startFrameInput");
-      const stopInput = document.getElementById("stopFrameInput");
-
-      startInput.min = 1;
-      stopInput.min = 1;
-      stopInput.max = frameCount;
-
-      let start = parseInt(startInput.value, 10);
-      let stop = parseInt(stopInput.value, 10);
-
-      if (isNaN(start) || start < 1) start = 1;
-      if (isNaN(stop) || stop > frameCount) stop = frameCount;
-      if (stop < start) {
-        console.log("⚠️ Stop frame less than start frame, adjusting stop to start.");
-        stop = start;
-      }
-
-      startInput.value = start;
-      stopInput.value = stop;
-
-      console.log(`▶️ Playing from frame ${start} to ${stop} at ${fps} FPS`);
-
-      if (start === 1 && stop === frameCount) {
-        cycleFrames(frameCount, delay);
-      } else {
-        cycleFramesRange(start, stop, delay);
-      }
-    } else {
+    if (frameCount === 0) {
       console.log("❌ No frames found in anim_preview.");
+      return;
+    }
+
+    const startInput = document.getElementById("startFrameInput");
+    const stopInput = document.getElementById("stopFrameInput");
+
+    let start = parseInt(startInput.value, 10);
+    let stop = parseInt(stopInput.value, 10);
+
+    // If inputs are empty or invalid, fallback to full range
+    if (isNaN(start) || start < 1 || start > frameCount) start = 1;
+    if (isNaN(stop) || stop < 1 || stop > frameCount) stop = frameCount;
+
+    if (stop < start) {
+      console.log("⚠️ Stop frame less than start frame, adjusting stop to start.");
+      stop = start;
+    }
+
+    // Update inputs to valid values so user sees corrected numbers
+    startInput.value = start;
+    stopInput.value = stop;
+
+    console.log(`▶️ Playing frames from ${start} to ${stop} at ${fps} FPS`);
+
+    if (start === 1 && stop === frameCount) {
+      cycleFrames(frameCount, delay);
+    } else {
+      cycleFramesRange(start, stop, delay);
     }
   });
 };
@@ -180,7 +164,3 @@ document.getElementById("stopBtn").onclick = () => {
   shouldStop = true;
   console.log("🛑 User requested to stop animation");
 };
-
-window.addEventListener("DOMContentLoaded", () => {
-  setDefaultStartStop();
-});
