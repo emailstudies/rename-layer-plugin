@@ -1,46 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Photopea Panel Resizer</title>
-<style>
-  body {
-    font-family: sans-serif;
-    margin: 0;
-    padding: 10px;
-  }
-  button {
-    padding: 5px 10px;
-    font-size: 14px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Rename Layer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #388E3C;
+    }
+  </style>
 </head>
 <body>
-  <button id="renameBtn">Toggle Panel Size</button>
 
-  <script>
-    const btn = document.getElementById('renameBtn');
+  <h2>Rename Selected Layer</h2>
+  <input id="newName" type="number" placeholder="FPS (frames per second)" value="13" min="1" />
+  <button id="renameBtn">Rename</button>
 
-    let isSmall = false;
-
-    btn.addEventListener('click', () => {
-      if (!window.frameElement) {
-        console.warn("Not inside an iframe — can't resize panel.");
-        return;
-      }
-
-      if (!isSmall) {
-        // Shrink
-        window.frameElement.style.width = "120px";
-        window.frameElement.style.height = "40px";
-        isSmall = true;
-      } else {
-        // Restore
-        window.frameElement.style.width = "300px";
-        window.frameElement.style.height = "400px";
-        isSmall = false;
-      }
-    });
-  </script>
+  <script src="script.js"></script>
+  
 </body>
 </html>
