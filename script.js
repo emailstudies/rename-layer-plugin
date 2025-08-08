@@ -1,5 +1,9 @@
 let shouldStop = false;
 
+function showWarning(message) {
+  alert(message); // You can customize this UI later if you want
+}
+
 function showOnlyFrame(index) {
   const script = `
     (function () {
@@ -73,7 +77,7 @@ function getFrameCount(callback) {
 }
 
 function cycleFramesRange(startIndex, stopIndex, delay = 300) {
-  let i = startIndex;
+  let i = stopIndex; // Reverse playback starting at stopIndex
 
   function next() {
     if (shouldStop) {
@@ -82,8 +86,8 @@ function cycleFramesRange(startIndex, stopIndex, delay = 300) {
     }
 
     showOnlyFrame(i);
-    i++;
-    if (i > stopIndex) i = startIndex;
+    i--;
+    if (i < startIndex) i = stopIndex;
 
     setTimeout(next, delay);
   }
@@ -99,27 +103,33 @@ document.getElementById("renameBtn").onclick = () => {
 
   getFrameCount((frameCount) => {
     if (frameCount > 0) {
-      // Update stop frame max and clamp
       const stopInput = document.getElementById("stopFrameInput");
       stopInput.max = frameCount;
-      if (parseInt(stopInput.value, 10) > frameCount) {
+
+      let userStop = parseInt(stopInput.value, 10);
+      if (isNaN(userStop) || userStop < 1) {
+        userStop = frameCount;
+      } else if (userStop > frameCount) {
+        showWarning(`Stop Frame cannot be greater than total frames (${frameCount}). Clamping to ${frameCount}.`);
+        userStop = frameCount;
         stopInput.value = frameCount;
       }
+
       if (!stopInput.value) stopInput.value = frameCount;
 
-      // Get start and stop frame from user input, clamp and fix invalid ranges
       let start = parseInt(document.getElementById("startFrameInput").value, 10);
-      let stop = parseInt(stopInput.value, 10);
-
       if (isNaN(start) || start < 1) start = 1;
-      if (isNaN(stop) || stop > frameCount) stop = frameCount;
-      if (stop < start) stop = start;
 
-      // Convert to zero-based index
+      if (userStop < start) {
+        showWarning("Stop Frame cannot be less than Start Frame. Adjusting Stop Frame to Start Frame.");
+        userStop = start;
+        stopInput.value = start;
+      }
+
       const startIndex = start - 1;
-      const stopIndex = stop - 1;
+      const stopIndex = userStop - 1;
 
-      console.log(`🎞️ Playing frames ${start} to ${stop} at FPS:`, fps, "→ Delay:", delay.toFixed(1), "ms");
+      console.log(`🎞️ Playing frames ${start} to ${userStop} at FPS:`, fps, "→ Delay:", delay.toFixed(1), "ms");
       cycleFramesRange(startIndex, stopIndex, delay);
     } else {
       console.log("No frames found in anim_preview.");
