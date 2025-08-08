@@ -1,11 +1,10 @@
 document.getElementById("renameBtn").addEventListener("click", () => {
-  console.log("Rename clicked - resizing panel");
-  
-  if (window.frameElement) {
-    window.frameElement.style.width = "200px";  // shrink width
-    window.frameElement.style.height = "40px";  // shrink height
-    console.log("Panel resized inside Photopea");
+  console.log("Rename clicked - requesting panel resize");
+
+  if (window.parent !== window) {
+    parent.postMessage({ type: "resize", width: 200, height: 40 }, "*");
+    console.log("Resize request sent to Photopea");
   } else {
-    console.warn("Not inside an iframe — can't resize panel");
+    console.warn("Not inside Photopea or iframe");
   }
 });
