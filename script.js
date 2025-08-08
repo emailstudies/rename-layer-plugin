@@ -4,10 +4,10 @@ let currentTimerId = null;
 /**
  * showOnlyFrame
  * -----------------
- * Sends a script to Photopea to show only the frame (layer) at the given index
- * within the 'anim_preview' group, hiding all others and keeping background visible.
+ * Sends a script to Photopea to show only the frame (layer) at the given zero-based index
+ * within the 'anim_preview' group, hiding all other frames but keeping background visible.
  * 
- * @param {number} index - zero-based index of the frame to show
+ * @param {number} index - zero-based layer index to show
  */
 function showOnlyFrame(index) {
   const script = `
@@ -16,7 +16,7 @@ function showOnlyFrame(index) {
       var animGroup = null;
       var bgLayer = null;
 
-      // Find the 'anim_preview' group and 'background' layer among top-level layers
+      // Find anim_preview group and background layer
       for (var i = 0; i < doc.layers.length; i++) {
         var layer = doc.layers[i];
         if (layer.typename === "LayerSet" && layer.name === "anim_preview") {
@@ -24,7 +24,7 @@ function showOnlyFrame(index) {
         } else if (layer.name.toLowerCase() === "background") {
           bgLayer = layer;
         } else {
-          layer.visible = false; // hide all other top-level layers
+          layer.visible = false; // Hide all other top-level layers
         }
       }
 
@@ -36,17 +36,18 @@ function showOnlyFrame(index) {
       animGroup.visible = true;
       if (bgLayer) bgLayer.visible = true;
 
-      // Hide all frames initially
+      // Hide all frames in anim_preview
       for (var i = 0; i < animGroup.layers.length; i++) {
         animGroup.layers[i].visible = false;
       }
 
-      // Show only the requested frame if in range
-      if (${index} < animGroup.layers.length) {
+      // Show only requested frame if valid index
+      if (${index} >= 0 && ${index} < animGroup.layers.length) {
         animGroup.layers[${index}].visible = true;
         app.echoToOE("👁️ Showing frame ${index}");
       }
-    })();`;
+    })();
+  `;
 
   parent.postMessage(script, "*");
 }
@@ -55,9 +56,9 @@ function showOnlyFrame(index) {
  * getFrameCount
  * -----------------
  * Queries Photopea for the number of frames (layers) inside 'anim_preview'.
- * Calls the provided callback with the frame count once received.
+ * Calls the callback with the frame count once received.
  * 
- * @param {function} callback - function to call with frame count (number)
+ * @param {function} callback - called with frame count (number)
  */
 function getFrameCount(callback) {
   const script = `
@@ -76,10 +77,10 @@ function getFrameCount(callback) {
       } else {
         app.echoToOE("✅ count " + animGroup.layers.length);
       }
-    })();`;
+    })();
+  `;
 
-  // Listen once for the response containing frame count
-  window.addEventListener("message", function handleCount(event) {
+  function handleCount(event) {
     if (typeof event.data === "string" && event.data.startsWith("✅ count")) {
       const count = parseInt(event.data.split(" ")[2], 10);
       if (!isNaN(count)) {
@@ -88,15 +89,16 @@ function getFrameCount(callback) {
         callback(count);
       }
     }
-  });
+  }
 
+  window.addEventListener("message", handleCount);
   parent.postMessage(script, "*");
 }
 
 /**
  * clearTimer
  * -----------------
- * Helper to clear any existing playback timer to prevent multiple overlapping loops.
+ * Clears any existing playback timer to avoid overlapping loops.
  */
 function clearTimer() {
   if (currentTimerId !== null) {
@@ -108,20 +110,20 @@ function clearTimer() {
 /**
  * cycleFrames
  * -----------------
- * Plays the full animation cycling through all frames, either forward or reverse,
- * with optional ping-pong (back and forth) playback.
- * Loops continuously until stopped.
+ * Plays the full animation cycling through all frames, with options for direction and ping-pong.
+ * Frames are indexed zero-based top to bottom (0 = top layer, n-1 = bottom layer).
  * 
- * @param {number} total - total number of frames
+ * @param {number} total - total frames in anim_preview
  * @param {number} delay - delay in milliseconds between frames
- * @param {boolean} reverse - true to play frames in reverse order
- * @param {boolean} pingpong - true to play back and forth (ping-pong)
+ * @param {boolean} reverse - play frames in reverse (bottom to top)
+ * @param {boolean} pingpong - enable ping-pong playback (back and forth)
  */
 function cycleFrames(total, delay, reverse, pingpong) {
   console.log(`▶️ cycleFrames playing full animation total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-  let i = reverse ? total - 1 : 0;
-  let direction = reverse ? -1 : 1;
+  // Determine start index and direction considering Photopea layer order
+  let i = reverse ? 0 : total - 1;
+  let direction = reverse ? 1 : -1; // reverse plays bottom to top (index ascending)
   let goingForward = true;
 
   clearTimer();
@@ -140,30 +142,21 @@ function cycleFrames(total, delay, reverse, pingpong) {
     if (pingpong) {
       if (goingForward) {
         i += direction;
-        if (i >= total) {
-          i = total - 2;
+        if ((direction === 1 && i >= total) || (direction === -1 && i < 0)) {
           goingForward = false;
-        } else if (i < 0) {
-          i = 1;
-          goingForward = true;
+          i -= 2 * direction;
         }
       } else {
         i -= direction;
-        if (i < 0) {
-          i = 1;
+        if ((direction === 1 && i < 0) || (direction === -1 && i >= total)) {
           goingForward = true;
-        } else if (i >= total) {
-          i = total - 2;
-          goingForward = false;
+          i += 2 * direction;
         }
       }
     } else {
       i += direction;
-      if (reverse) {
-        if (i < 0) i = total - 1;
-      } else {
-        if (i >= total) i = 0;
-      }
+      if (i < 0) i = total - 1;
+      if (i >= total) i = 0;
     }
 
     currentTimerId = setTimeout(next, delay);
@@ -175,23 +168,32 @@ function cycleFrames(total, delay, reverse, pingpong) {
 /**
  * cycleFramesRange
  * -----------------
- * Plays animation looping between a range of frames [start, stop], either forward or reverse,
- * with optional ping-pong playback.
- * Frames are 1-based in UI, converted internally to 0-based index.
+ * Plays animation looping between a range of frames [start, stop] specified by the user,
+ * considering Photopea’s reversed layer indexing.
+ * Supports reverse and ping-pong playback.
  * 
- * @param {number} start - start frame number (1-based)
- * @param {number} stop - stop frame number (1-based)
+ * @param {number} start - 1-based user start frame number (bottom = 1)
+ * @param {number} stop - 1-based user stop frame number
  * @param {number} delay - delay in ms between frames
- * @param {boolean} reverse - play frames in reverse order
+ * @param {boolean} reverse - true to reverse playback direction
  * @param {boolean} pingpong - enable ping-pong playback
+ * @param {number} frameCount - total frames in anim_preview (needed for index conversion)
  */
-function cycleFramesRange(start, stop, delay, reverse, pingpong) {
+function cycleFramesRange(start, stop, delay, reverse, pingpong, frameCount) {
   console.log(`▶️ cycleFramesRange playing frames from ${start} to ${stop}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-  const startIndex = start - 1;
-  const stopIndex = stop - 1;
+  // Convert user 1-based frame numbers to Photopea zero-based indices (top=0, bottom=n-1)
+  let startIndex = frameCount - start;
+  let stopIndex = frameCount - stop;
+
+  // Make sure startIndex >= stopIndex because layers are top-down
+  if (startIndex < stopIndex) {
+    [startIndex, stopIndex] = [stopIndex, startIndex];
+  }
+
+  // Determine initial frame index and direction
   let i = reverse ? stopIndex : startIndex;
-  let direction = reverse ? -1 : 1;
+  let direction = reverse ? 1 : -1; // direction follows layer index order
   let goingForward = true;
 
   clearTimer();
@@ -210,30 +212,21 @@ function cycleFramesRange(start, stop, delay, reverse, pingpong) {
     if (pingpong) {
       if (goingForward) {
         i += direction;
-        if (i > stopIndex) {
-          i = stopIndex - 1;
+        if ((direction === 1 && i > startIndex) || (direction === -1 && i < stopIndex)) {
           goingForward = false;
-        } else if (i < startIndex) {
-          i = startIndex + 1;
-          goingForward = true;
+          i -= 2 * direction;
         }
       } else {
         i -= direction;
-        if (i < startIndex) {
-          i = startIndex + 1;
+        if ((direction === 1 && i < stopIndex) || (direction === -1 && i > startIndex)) {
           goingForward = true;
-        } else if (i > stopIndex) {
-          i = stopIndex - 1;
-          goingForward = false;
+          i += 2 * direction;
         }
       }
     } else {
       i += direction;
-      if (reverse) {
-        if (i < startIndex) i = stopIndex;
-      } else {
-        if (i > stopIndex) i = startIndex;
-      }
+      if (direction === -1 && i < stopIndex) i = startIndex;
+      if (direction === 1 && i > startIndex) i = stopIndex;
     }
 
     currentTimerId = setTimeout(next, delay);
@@ -242,46 +235,43 @@ function cycleFramesRange(start, stop, delay, reverse, pingpong) {
   next();
 }
 
-// Play button handler: fetch frame count and start appropriate playback
+// Play button event handler: get frame count, parse inputs, start animation
 document.getElementById("renameBtn").onclick = () => {
   shouldStop = false;
 
   getFrameCount((frameCount) => {
     if (frameCount <= 0) {
-      console.log("No frames found in anim_preview.");
+      console.log("❌ No frames found in anim_preview.");
       return;
     }
 
-    const startInput = document.getElementById("startFrameInput").value.trim();
-    const stopInput = document.getElementById("stopFrameInput").value.trim();
+    // Parse start and stop inputs; default to full range if empty or invalid
+    let start = parseInt(document.getElementById("startFrameInput").value.trim(), 10);
+    let stop = parseInt(document.getElementById("stopFrameInput").value.trim(), 10);
 
-    let start = parseInt(startInput, 10);
-    let stop = parseInt(stopInput, 10);
-
-    // Default to entire range if inputs empty or invalid
     if (isNaN(start) || start < 1) start = 1;
     if (isNaN(stop) || stop > frameCount) stop = frameCount;
 
     if (start > stop) {
-      alert("Start frame cannot be greater than Stop frame.");
+      alert("⚠️ Start frame cannot be greater than Stop frame.");
       return;
     }
 
     const delay = getSelectedDelay();
-
     const reverse = document.getElementById("reverseChk").checked;
     const pingpong = document.getElementById("pingpongChk").checked;
 
     if (start === 1 && stop === frameCount) {
       cycleFrames(frameCount, delay, reverse, pingpong);
     } else {
-      cycleFramesRange(start, stop, delay, reverse, pingpong);
+      cycleFramesRange(start, stop, delay, reverse, pingpong, frameCount);
     }
   });
 };
 
-// Stop button handler: stop animation playback
+// Stop button event handler: stop animation playback
 document.getElementById("stopBtn").onclick = () => {
   shouldStop = true;
   clearTimer();
+  console.log("🛑 Animation stopped by user");
 };
