@@ -1,26 +1,26 @@
-// panel_resize.js
-
 document.addEventListener("DOMContentLoaded", () => {
-    const resizeBtn = document.getElementById("renameBtn");
+  const renameBtn = document.getElementById("renameBtn");
 
-    if (!resizeBtn) {
-        console.warn("⚠️ No button with ID 'resizeBtn' found.");
-        return;
+  renameBtn.addEventListener("click", () => {
+    console.log("Rename clicked");
+
+    // Only try resizing if inside an iframe
+    if (window.parent !== window) {
+      console.log("Sending resize request to Photopea host");
+      window.parent.postMessage({
+        type: "resizePanel",
+        width: 200,   // adjust to your needs
+        height: 40    // adjust to your needs
+      }, "*");
+    } else {
+      console.warn("Not inside an iframe — can't resize panel.");
     }
 
-    resizeBtn.addEventListener("click", () => {
-        // Check if we're inside an iframe
-        if (window.frameElement) {
-            try {
-                // Set new size for plugin panel iframe
-                window.frameElement.style.width = "200px";   // or any width you want
-                window.frameElement.style.height = "40px";   // collapsed height
-                console.log("✅ Panel resized inside Photopea iframe.");
-            } catch (err) {
-                console.error("❌ Could not resize iframe:", err);
-            }
-        } else {
-            console.warn("Not inside an iframe — can't resize panel here.");
-        }
-    });
+    // Example: send a rename layer command to Photopea
+    const newName = document.getElementById("newName").value.trim();
+    if (newName) {
+      const script = `app.activeDocument.activeLayer.name = "${newName}";`;
+      window.parent.postMessage({ type: "eval", script }, "*");
+    }
+  });
 });
