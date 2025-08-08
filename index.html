@@ -28,6 +28,21 @@
 
   <h2>Rename Selected Layer</h2>
 
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+    <label for="fpsSelect">FPS:</label>
+    <select id="fpsSelect">
+      <option value="30">30</option>
+      <option value="24">24</option>
+      <option value="12" selected>12</option>
+      <option value="10">10</option>
+    </select>
+
+    <span>or</span>
+
+    <label for="manualDelay">Hold per frame (sec):</label>
+    <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" style="width: 60px;" />
+  </div>
+
   <label for="fpsInput">FPS (frames per second):</label>
   <input id="fpsInput" type="number" placeholder="FPS" value="12" min="1" />
   <br />
