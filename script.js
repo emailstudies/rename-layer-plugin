@@ -1,9 +1,9 @@
 // resize_panel.js
 document.addEventListener("DOMContentLoaded", function () {
-    const resizeBtn = document.getElementById("resizeBtn");
+    const resizeBtn = document.getElementById("renameBtn");
 
     if (!resizeBtn) {
-        console.error("Button #resizeBtn not found");
+        console.error("Button #renameBtn not found");
         return;
     }
 
