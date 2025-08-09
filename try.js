@@ -3,10 +3,12 @@ const Playback = (() => {
   let currentTimerId = null;
   let maxFrameCount = 0;
 
+  // Send a script string to Photopea
   function sendScript(script) {
     parent.postMessage(script, "*");
   }
 
+  // Show synced frame across all visible folders using reverse indexing logic
   function showOnlyFrame(frameIndex) {
     const script = `
       (function () {
@@ -14,13 +16,16 @@ const Playback = (() => {
         var folders = [];
         var bgLayer = null;
 
+        // Find root background layer and visible folders
         for (var i = 0; i < doc.layers.length; i++) {
           var layer = doc.layers[i];
           if (layer.name.toLowerCase() === "background") {
             bgLayer = layer;
-            bgLayer.visible = true;
+            bgLayer.visible = true; // Always keep background visible
           } else if (layer.typename === "LayerSet" && layer.visible) {
             folders.push(layer);
+          } else if (layer.typename !== "LayerSet") {
+            // Leave other root non-folder layers as-is (do not hide)
           }
         }
 
@@ -29,6 +34,7 @@ const Playback = (() => {
           return;
         }
 
+        // Find max frames count across folders
         var maxFrames = 0;
         for (var f = 0; f < folders.length; f++) {
           if (folders[f].layers.length > maxFrames) {
@@ -36,6 +42,7 @@ const Playback = (() => {
           }
         }
 
+        // Show/hide layers in each folder synced by reverse indexing
         for (var f = 0; f < folders.length; f++) {
           var folder = folders[f];
           var totalFrames = folder.layers.length;
@@ -55,6 +62,7 @@ const Playback = (() => {
     sendScript(script);
   }
 
+  // Request max frame count by asking Photopea
   function getMaxFrameCount(callback) {
     const script = `
       (function () {
@@ -84,6 +92,7 @@ const Playback = (() => {
     sendScript(script);
   }
 
+  // Clear any scheduled timers
   function clearTimer() {
     if (currentTimerId !== null) {
       clearTimeout(currentTimerId);
@@ -91,15 +100,44 @@ const Playback = (() => {
     }
   }
 
-  // Extended playback supporting reverse & pingpong modes
+  // Main playback loop with reverse, pingpong, reverse pingpong support
   function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
 
-    // i = current frame index, direction = 1 or -1 step
-    let i = reverse ? total - 1 : 0;
-    let direction = reverse ? -1 : 1;
-    let goingForward = true; // for pingpong mode
+    // Start frame and direction depend on modes:
+    // Base synced start is always from total - 1 for reverse logic
+    // We'll adjust accordingly for modes to keep sync consistent
+
+    let i;
+    let direction;
+    let goingForward = true;
+
+    if (!pingpong) {
+      // Simple loop mode
+
+      if (reverse) {
+        // Reverse loop (your original logic)
+        i = total - 1;
+        direction = -1;
+      } else {
+        // Forward loop
+        i = 0;
+        direction = 1;
+      }
+    } else {
+      // Pingpong modes
+
+      if (reverse) {
+        // Reverse ping-pong: start at last frame, go backward first
+        i = total - 1;
+        direction = -1;
+      } else {
+        // Normal ping-pong: start at first frame, go forward first
+        i = 0;
+        direction = 1;
+      }
+    }
 
     function next() {
       if (shouldStop) {
@@ -111,23 +149,22 @@ const Playback = (() => {
       showOnlyFrame(i);
 
       if (pingpong) {
+        // Ping-pong behavior: bounce at ends
         if (goingForward) {
           i += direction;
-          // If out of bounds, flip direction
           if (i >= total || i < 0) {
             goingForward = false;
             i -= 2 * direction;
           }
         } else {
           i -= direction;
-          // When flipping back, reset direction again
           if (i < 0 || i >= total) {
             goingForward = true;
             i += 2 * direction;
           }
         }
       } else {
-        // Normal looping
+        // Looping behavior
         i += direction;
         if (i >= total) i = 0;
         if (i < 0) i = total - 1;
@@ -180,5 +217,4 @@ const Playback = (() => {
 // Hook up your buttons
 document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
 document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
-
 document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
