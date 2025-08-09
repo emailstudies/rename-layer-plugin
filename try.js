@@ -100,28 +100,26 @@ const Playback = (() => {
     }
   }
 
-  // Main playback loop with correct start and direction for normal/reverse and pingpong
+  // Main playback loop with reverse, pingpong support
   function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
 
-    // Normal playback starts at max-1 and goes backward
-    // Reverse playback starts at 0 and goes forward
     let i, direction, goingForward = true;
 
+    // Initialize frame index and direction respecting reverse & pingpong
     if (!pingpong) {
       if (reverse) {
-        i = 0;
-        direction = 1;
-      } else {
         i = total - 1;
+        direction = -1;
+      } else {
+        i = total - 1;  // start at max -1 for normal as well per your sync logic
         direction = -1;
       }
     } else {
-      // Pingpong starts similarly, direction changes handled in next()
       if (reverse) {
-        i = 0;
-        direction = 1;
+        i = total - 1;
+        direction = -1;
       } else {
         i = total - 1;
         direction = -1;
@@ -140,21 +138,21 @@ const Playback = (() => {
       if (pingpong) {
         if (goingForward) {
           i += direction;
-          if (i >= total || i < 0) {
+          if (i < 0 || i >= total) {
             goingForward = false;
             i -= 2 * direction;
           }
         } else {
           i -= direction;
-          if (i < 0 || i >= total) {
+          if (i >= total || i < 0) {
             goingForward = true;
             i += 2 * direction;
           }
         }
       } else {
         i += direction;
-        if (i >= total) i = 0;
         if (i < 0) i = total - 1;
+        if (i >= total) i = 0;
       }
 
       currentTimerId = setTimeout(next, delay);
@@ -173,15 +171,7 @@ const Playback = (() => {
       }
       maxFrameCount = count;
 
-      // Get delay from UI controls
-      let manualDelay = parseFloat(document.getElementById("manualDelay").value);
-      let delay;
-      if (!isNaN(manualDelay) && manualDelay > 0) {
-        delay = manualDelay * 1000;
-      } else {
-        let fps = parseInt(document.getElementById("fpsSelect").value, 10);
-        delay = 1000 / (fps || 12);
-      }
+      const delay = getSelectedDelay();  // from helpers.js - manual delay or fps select with default 12fps
 
       const reverse = document.getElementById("reverseChk").checked;
       const pingpong = document.getElementById("pingpongChk").checked;
