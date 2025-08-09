@@ -1,98 +1,146 @@
-// try.js
-window.onload = function () {
-    var playing = false;
-    var frameIndex = 0;
-    var timer = null;
-    var reverse = false;
-    var pingpong = false;
-    var direction = 1;
-    var delay = 1000 / 12; // default 12 fps
+// Playback module for multi-folder frame sync animation
+const Playback = (() => {
+  let shouldStop = false;
+  let currentTimerId = null;
 
-    document.getElementById("renameBtn").onclick = function () {
-        if (playing) return;
-        playing = true;
-
-        reverse = document.getElementById("reverseChk").checked;
-        pingpong = document.getElementById("pingpongChk").checked;
-
-        // Determine delay from FPS or manual delay
-        var manualDelay = parseFloat(document.getElementById("manualDelay").value);
-        if (!isNaN(manualDelay) && manualDelay > 0) {
-            delay = manualDelay * 1000;
-        } else {
-            var fps = parseFloat(document.getElementById("fpsSelect").value);
-            delay = 1000 / (isNaN(fps) || fps <= 0 ? 12 : fps);
-        }
-
-        // Optional start/stop frames from input
-        var startFrame = parseInt(document.getElementById("startFrameInput").value, 10) || 1;
-        var stopFrame = parseInt(document.getElementById("stopFrameInput").value, 10) || null;
-
-        // ==== Get folder/layer structure from Photopea ====
+  function showOnlyFrame(index) {
+    const script = `
+      (function () {
         var doc = app.activeDocument;
-        var topGroups = [];
+
         for (var i = 0; i < doc.layers.length; i++) {
-            var lyr = doc.layers[i];
-            if (lyr.layers && lyr.layers.length > 0) {
-                topGroups.push({
-                    ref: lyr,
-                    frames: lyr.layers.slice() // copy array of layers
-                });
+          var group = doc.layers[i];
+          if (group.typename === "LayerSet" && group.visible) {
+            // Hide all layers in this group
+            for (var j = 0; j < group.layers.length; j++) {
+              group.layers[j].visible = false;
             }
+            // Show the target layer if it exists
+            if (${index} >= 0 && ${index} < group.layers.length) {
+              group.layers[${index}].visible = true;
+            }
+            // If the index is out of range, show nothing for this group
+          }
         }
+        app.echoToOE("👁️ Showing frame index ${index} for all groups");
+      })();
+    `;
+    parent.postMessage(script, "*");
+  }
 
-        // Find maximum frame count
-        var maxFrames = 0;
-        topGroups.forEach(function (grp) {
-            if (grp.frames.length > maxFrames) maxFrames = grp.frames.length;
-        });
-
-        // Clamp stopFrame to maxFrames
-        if (stopFrame && stopFrame > maxFrames) stopFrame = maxFrames;
-
-        // Set initial frameIndex to startFrame-1 (zero-based)
-        frameIndex = Math.max(0, startFrame - 1);
-
-        // Animation loop
-        timer = setInterval(function () {
-            // Show/hide per group
-            topGroups.forEach(function (grp) {
-                // Hide all first
-                grp.frames.forEach(function (layer) {
-                    layer.visible = false;
-                });
-
-                // Show current frame if exists
-                if (frameIndex < grp.frames.length) {
-                    grp.frames[frameIndex].visible = true;
-                }
-            });
-
-            // Advance frame index
-            if (reverse) {
-                frameIndex -= direction;
-            } else {
-                frameIndex += direction;
+  function getMaxFrameCount(callback) {
+    const script = `
+      (function () {
+        var doc = app.activeDocument;
+        var maxCount = 0;
+        for (var i = 0; i < doc.layers.length; i++) {
+          var group = doc.layers[i];
+          if (group.typename === "LayerSet" && group.visible) {
+            if (group.layers.length > maxCount) {
+              maxCount = group.layers.length;
             }
+          }
+        }
+        app.echoToOE("✅ maxCount " + maxCount);
+      })();
+    `;
+    function handleCount(event) {
+      if (typeof event.data === "string" && event.data.startsWith("✅ maxCount")) {
+        const count = parseInt(event.data.split(" ")[2], 10);
+        if (!isNaN(count)) {
+          console.log("🧮 Detected max frame count across groups:", count);
+          window.removeEventListener("message", handleCount);
+          callback(count);
+        }
+      }
+    }
+    window.addEventListener("message", handleCount);
+    parent.postMessage(script, "*");
+  }
 
-            // Handle pingpong
-            if (pingpong) {
-                if (frameIndex >= (stopFrame || maxFrames) || frameIndex < (startFrame - 1)) {
-                    direction *= -1;
-                    frameIndex += direction * 2;
-                }
-            } else {
-                // Normal looping
-                if (frameIndex >= (stopFrame || maxFrames)) frameIndex = startFrame - 1;
-                if (frameIndex < (startFrame - 1)) frameIndex = (stopFrame || maxFrames) - 1;
-            }
+  function clearTimer() {
+    if (currentTimerId !== null) {
+      clearTimeout(currentTimerId);
+      currentTimerId = null;
+    }
+  }
 
-        }, delay);
-    };
+  function cycleFrames(total, delay, reverse, pingpong) {
+    console.log(`▶️ cycleFrames playing total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-    document.getElementById("stopBtn").onclick = function () {
-        playing = false;
-        clearInterval(timer);
-        frameIndex = 0;
-    };
-};
+    let i = reverse ? total - 1 : 0;
+    let direction = reverse ? -1 : 1;
+    let goingForward = true;
+
+    clearTimer();
+    shouldStop = false;
+
+    function next() {
+      if (shouldStop) {
+        console.log("🛑 Animation stopped.");
+        clearTimer();
+        return;
+      }
+
+      showOnlyFrame(i);
+      console.log(`▶️ Showing frame index: ${i}`);
+
+      if (pingpong) {
+        if (goingForward) {
+          i += direction;
+          if (i >= total || i < 0) {
+            goingForward = false;
+            i -= direction * 2;
+          }
+        } else {
+          i -= direction;
+          if (i < 0 || i >= total) {
+            goingForward = true;
+            i += direction * 2;
+          }
+        }
+      } else {
+        i += direction;
+        if (i >= total) i = 0;
+        if (i < 0) i = total - 1;
+      }
+
+      currentTimerId = setTimeout(next, delay);
+    }
+
+    next();
+  }
+
+  function startPlayback() {
+    shouldStop = false;
+
+    getMaxFrameCount((frameCount) => {
+      if (frameCount <= 0) {
+        console.log("❌ No frames found in visible groups.");
+        return;
+      }
+
+      const delay = getSelectedDelay();
+      const reverse = document.getElementById("reverseChk").checked;
+      const pingpong = document.getElementById("pingpongChk").checked;
+
+      cycleFrames(frameCount, delay, reverse, pingpong);
+    });
+  }
+
+  function stopPlayback() {
+    shouldStop = true;
+    clearTimer();
+    console.log("🛑 Playback stopped by user");
+  }
+
+  return {
+    startPlayback,
+    stopPlayback,
+  };
+})();
+
+// Bind buttons
+document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
+document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
+document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
