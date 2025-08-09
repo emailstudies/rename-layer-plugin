@@ -231,27 +231,25 @@ const Playback = (() => {
       stopInput.min = 1;
       stopInput.max = count;
 
+      if (!startInput.value) startInput.value = 1;
+      if (!stopInput.value) stopInput.value = count;
+
       let start = parseInt(startInput.value, 10);
       let stop = parseInt(stopInput.value, 10);
-
-      // Defaults if empty or invalid
-      if (isNaN(start) || start < 1) start = 1;
-      if (isNaN(stop) || stop < 1) stop = count;
-
-      // Confirm if stop > max frames
-      if (stop > count) {
-        const proceed = confirm(`⚠️ Stop frame (${stop}) exceeds max frames (${count}).\nPress OK to set Stop frame to max (${count}), or Cancel to abort playback.`);
-        if (!proceed) {
-          console.log("Playback aborted by user due to invalid Stop frame.");
-          return; // Stop playback entirely
-        }
-        stop = count;
-        stopInput.value = count;
-      }
 
       if (start > stop) {
         alert("⚠️ Start frame cannot be greater than Stop frame.");
         return;
+      }
+
+      if (stop > count) {
+        if (confirm(`⚠️ Stop frame (${stop}) exceeds max frames (${count}).\nSet Stop frame to max (${count})?`)) {
+          stopInput.value = count;
+          stop = count;
+        } else {
+          // User declined, cancel playback
+          return;
+        }
       }
 
       const delay = getSelectedDelay();
@@ -283,3 +281,14 @@ document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
 
 // Update fps select disable state if manual delay input changes
 document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
+
+// Auto-restart playback on reverse or pingpong checkbox change
+["reverseChk", "pingpongChk"].forEach(id => {
+  const checkbox = document.getElementById(id);
+  if (checkbox) {
+    checkbox.addEventListener("change", () => {
+      Playback.stopPlayback();
+      Playback.startPlayback();
+    });
+  }
+});
