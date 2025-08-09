@@ -107,6 +107,7 @@ const Playback = (() => {
 
     let i, direction, goingForward = true;
 
+    // Set starting frame and direction based on reverse checkbox
     if (!pingpong) {
       if (reverse) {
         i = total - 1;
@@ -116,6 +117,7 @@ const Playback = (() => {
         direction = 1;
       }
     } else {
+      // Pingpong starts same as normal direction
       if (reverse) {
         i = total - 1;
         direction = -1;
@@ -160,6 +162,7 @@ const Playback = (() => {
     next();
   }
 
+  // Start playback, read settings from UI
   function startPlayback() {
     shouldStop = false;
 
@@ -170,7 +173,7 @@ const Playback = (() => {
       }
       maxFrameCount = count;
 
-      // Get delay from UI
+      // Get delay from UI inputs
       let manualDelay = parseFloat(document.getElementById("manualDelay").value);
       let delay;
       if (!isNaN(manualDelay) && manualDelay > 0) {
@@ -187,6 +190,7 @@ const Playback = (() => {
     });
   }
 
+  // Stop playback
   function stopPlayback() {
     shouldStop = true;
     clearTimer();
