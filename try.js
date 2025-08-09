@@ -68,8 +68,9 @@ const Playback = (() => {
   function cycleFrames(total, delay, reverse, pingpong) {
     console.log(`▶️ cycleFrames playing total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-    let i = reverse ? total - 1 : 0;
-    let direction = reverse ? -1 : 1;
+    // Restored original reverse behavior
+    let i = reverse ? 0 : total - 1;
+    let direction = reverse ? 1 : -1;
     let goingForward = true;
 
     clearTimer();
@@ -88,21 +89,21 @@ const Playback = (() => {
       if (pingpong) {
         if (goingForward) {
           i += direction;
-          if (i >= total || i < 0) {
+          if ((direction === 1 && i >= total) || (direction === -1 && i < 0)) {
             goingForward = false;
-            i -= direction * 2;
+            i -= 2 * direction;
           }
         } else {
           i -= direction;
-          if (i < 0 || i >= total) {
+          if ((direction === 1 && i < 0) || (direction === -1 && i >= total)) {
             goingForward = true;
-            i += direction * 2;
+            i += 2 * direction;
           }
         }
       } else {
         i += direction;
-        if (i >= total) i = 0;
         if (i < 0) i = total - 1;
+        if (i >= total) i = 0;
       }
 
       currentTimerId = setTimeout(next, delay);
