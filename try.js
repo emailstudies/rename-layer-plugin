@@ -14,14 +14,18 @@ const Playback = (() => {
       (function () {
         var doc = app.activeDocument;
         var folders = [];
-        // Collect visible folders
+        var bgLayer = null;
+
+        // Find root background layer and visible folders
         for (var i = 0; i < doc.layers.length; i++) {
           var layer = doc.layers[i];
-          if (layer.typename === "LayerSet" && layer.visible) {
+          if (layer.name.toLowerCase() === "background") {
+            bgLayer = layer;
+            bgLayer.visible = true; // Always keep background visible
+          } else if (layer.typename === "LayerSet" && layer.visible) {
             folders.push(layer);
-          } else {
-            // Hide all other top-level layers
-            layer.visible = false;
+          } else if (layer.typename !== "LayerSet") {
+            // Leave other root non-folder layers as-is (do not hide)
           }
         }
 
@@ -49,7 +53,6 @@ const Playback = (() => {
           if (idx >= 0 && idx < totalFrames) {
             folder.layers[idx].visible = true;
           }
-          // Ensure folder itself is visible
           folder.visible = true;
         }
 
