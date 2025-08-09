@@ -1,80 +1,98 @@
-var playing = false;
-var frameIndex = 0;
-var timer = null;
-var reverse = false;
-var pingpong = false;
-var direction = 1;
-var fps = 12;
+// try.js
+window.onload = function () {
+    var playing = false;
+    var frameIndex = 0;
+    var timer = null;
+    var reverse = false;
+    var pingpong = false;
+    var direction = 1;
+    var delay = 1000 / 12; // default 12 fps
 
-// Play button click
-document.getElementById("playBtn").onclick = function () {
-    if (playing) return;
-    playing = true;
+    document.getElementById("renameBtn").onclick = function () {
+        if (playing) return;
+        playing = true;
 
-    reverse = document.getElementById("reverseChk").checked;
-    pingpong = document.getElementById("pingpongChk").checked;
+        reverse = document.getElementById("reverseChk").checked;
+        pingpong = document.getElementById("pingpongChk").checked;
 
-    var fpsInput = parseFloat(document.getElementById("fpsInput").value);
-    fps = isNaN(fpsInput) ? 12 : fpsInput;
-
-    var delay = 1000 / fps;
-
-    // get visible top-level groups (ignore background)
-    var doc = app.activeDocument;
-    var topGroups = [];
-    for (var i = 0; i < doc.layers.length; i++) {
-        var lyr = doc.layers[i];
-        if (lyr.layers && lyr.visible && lyr.name.toLowerCase() !== "background") {
-            topGroups.push(lyr);
+        // Determine delay from FPS or manual delay
+        var manualDelay = parseFloat(document.getElementById("manualDelay").value);
+        if (!isNaN(manualDelay) && manualDelay > 0) {
+            delay = manualDelay * 1000;
+        } else {
+            var fps = parseFloat(document.getElementById("fpsSelect").value);
+            delay = 1000 / (isNaN(fps) || fps <= 0 ? 12 : fps);
         }
-    }
 
-    // find the maximum number of frames in any group
-    var maxFrames = 0;
-    var groupFrames = {};
-    topGroups.forEach(function (grp) {
-        var count = grp.layers.length;
-        groupFrames[grp.id] = count;
-        if (count > maxFrames) maxFrames = count;
-    });
+        // Optional start/stop frames from input
+        var startFrame = parseInt(document.getElementById("startFrameInput").value, 10) || 1;
+        var stopFrame = parseInt(document.getElementById("stopFrameInput").value, 10) || null;
 
-    // start animation loop
-    timer = setInterval(function () {
-        // show correct frame in each group
+        // ==== Get folder/layer structure from Photopea ====
+        var doc = app.activeDocument;
+        var topGroups = [];
+        for (var i = 0; i < doc.layers.length; i++) {
+            var lyr = doc.layers[i];
+            if (lyr.layers && lyr.layers.length > 0) {
+                topGroups.push({
+                    ref: lyr,
+                    frames: lyr.layers.slice() // copy array of layers
+                });
+            }
+        }
+
+        // Find maximum frame count
+        var maxFrames = 0;
         topGroups.forEach(function (grp) {
-            var totalFrames = groupFrames[grp.id];
-            for (var j = 0; j < grp.layers.length; j++) {
-                grp.layers[j].visible = false;
-            }
-            if (frameIndex < totalFrames) {
-                grp.layers[frameIndex].visible = true;
-            }
+            if (grp.frames.length > maxFrames) maxFrames = grp.frames.length;
         });
 
-        // update index for next tick
-        if (reverse) {
-            frameIndex -= direction;
-        } else {
-            frameIndex += direction;
-        }
+        // Clamp stopFrame to maxFrames
+        if (stopFrame && stopFrame > maxFrames) stopFrame = maxFrames;
 
-        // ping-pong handling
-        if (pingpong) {
-            if (frameIndex >= maxFrames || frameIndex < 0) {
-                direction *= -1;
-                frameIndex += direction * 2; // step back into range
+        // Set initial frameIndex to startFrame-1 (zero-based)
+        frameIndex = Math.max(0, startFrame - 1);
+
+        // Animation loop
+        timer = setInterval(function () {
+            // Show/hide per group
+            topGroups.forEach(function (grp) {
+                // Hide all first
+                grp.frames.forEach(function (layer) {
+                    layer.visible = false;
+                });
+
+                // Show current frame if exists
+                if (frameIndex < grp.frames.length) {
+                    grp.frames[frameIndex].visible = true;
+                }
+            });
+
+            // Advance frame index
+            if (reverse) {
+                frameIndex -= direction;
+            } else {
+                frameIndex += direction;
             }
-        } else {
-            // normal loop handling
-            if (frameIndex >= maxFrames) frameIndex = 0;
-            if (frameIndex < 0) frameIndex = maxFrames - 1;
-        }
-    }, delay);
-};
 
-// Stop button click
-document.getElementById("stopBtn").onclick = function () {
-    playing = false;
-    clearInterval(timer);
-    frameIndex = 0;
+            // Handle pingpong
+            if (pingpong) {
+                if (frameIndex >= (stopFrame || maxFrames) || frameIndex < (startFrame - 1)) {
+                    direction *= -1;
+                    frameIndex += direction * 2;
+                }
+            } else {
+                // Normal looping
+                if (frameIndex >= (stopFrame || maxFrames)) frameIndex = startFrame - 1;
+                if (frameIndex < (startFrame - 1)) frameIndex = (stopFrame || maxFrames) - 1;
+            }
+
+        }, delay);
+    };
+
+    document.getElementById("stopBtn").onclick = function () {
+        playing = false;
+        clearInterval(timer);
+        frameIndex = 0;
+    };
 };
