@@ -1,112 +1,95 @@
-const Playback = (() => {
-  let currentTimerId = null;
-  let shouldStop = false;
+// Playback control variables
+let shouldStop = false;
+let currentTimerId = null;
 
-  // Get visible folders (layer sets)
-  function getVisibleFolders() {
-    let count = app.activeDocument.layers.length;
-    let folders = [];
-    for (let i = 0; i < count; i++) {
-      let lyr = app.activeDocument.layers[i];
-      if (lyr.layers && lyr.visible) folders.push(lyr);
-    }
-    return folders;
+// Clear running timer
+function clearTimer() {
+  if (currentTimerId) {
+    clearTimeout(currentTimerId);
+    currentTimerId = null;
   }
+}
 
-  // Get max frame count across all folders
-  function getMaxFrameCount(folders) {
-    return Math.max(...folders.map(f => f.layers.length));
-  }
-
-  // Show only one frame in a folder (0-based index, top layer = 0)
-  function showOnlyFrameInFolder(folder, frameIndex) {
-    let total = folder.layers.length;
-    for (let i = 0; i < total; i++) {
-      folder.layers[i].visible = (i === frameIndex);
+// Get visible folders (layer sets)
+function getVisibleFolders() {
+  const doc = app.activeDocument;
+  let folders = [];
+  for (let i = 0; i < doc.layers.length; i++) {
+    const layer = doc.layers[i];
+    if (layer.typename === "LayerSet" && layer.visible) {
+      folders.push(layer);
     }
   }
+  return folders;
+}
 
-  // Clear running timer
-  function clearTimer() {
-    if (currentTimerId) {
-      clearTimeout(currentTimerId);
-      currentTimerId = null;
-    }
+// Get max frame count across folders
+function getMaxFrameCount(folders) {
+  if (folders.length === 0) return 0;
+  let counts = folders.map(f => f.layers.length);
+  return Math.max(...counts);
+}
+
+// Show only one frame in a folder (reverse indexing)
+function showOnlyFrameInFolder(folder, globalFrameIndex, maxFrameCount) {
+  const totalFrames = folder.layers.length;
+  let frameIndex = totalFrames - 1 - (maxFrameCount - 1 - globalFrameIndex);
+  for (let i = 0; i < totalFrames; i++) {
+    folder.layers[i].visible = (i === frameIndex);
+  }
+}
+
+// Playback loop for all folders
+function playAllFolders(delayMs) {
+  const folders = getVisibleFolders();
+  if (folders.length === 0) {
+    alert("No visible folders found to play.");
+    return;
   }
 
-  // Main playback loop
-  function playAllFolders(delay) {
-    let folders = getVisibleFolders();
-    if (folders.length === 0) {
-      console.log("⚠️ No visible folders to play.");
+  const maxCount = getMaxFrameCount(folders);
+  let globalFrameIndex = maxCount - 1;
+  shouldStop = false;
+  clearTimer();
+
+  function nextFrame() {
+    if (shouldStop) {
+      clearTimer();
       return;
     }
 
-    let maxCount = getMaxFrameCount(folders);
-    console.log(`🎬 Starting playback. Max frames = ${maxCount}`);
+    folders.forEach(folder => {
+      showOnlyFrameInFolder(folder, globalFrameIndex, maxCount);
+    });
 
-    let frameIndex = maxCount - 1; // Start from top layer index
-    shouldStop = false;
-    clearTimer();
+    globalFrameIndex--;
+    if (globalFrameIndex < 0) globalFrameIndex = maxCount - 1;
 
-    function next() {
-      if (shouldStop) {
-        console.log("🛑 Playback stopped.");
-        clearTimer();
-        return;
-      }
-
-      folders.forEach(folder => {
-        let total = folder.layers.length;
-        // Calculate folder-specific frame index from global frame index
-        let indexForThisFolder = total - 1 - (maxCount - 1 - frameIndex);
-
-        if (indexForThisFolder >= 0 && indexForThisFolder < total) {
-          showOnlyFrameInFolder(folder, indexForThisFolder);
-        } else {
-          // Hide all if no frame for this step
-          for (let i = 0; i < total; i++) {
-            folder.layers[i].visible = false;
-          }
-        }
-      });
-
-      console.log(`▶️ Global frame: ${frameIndex + 1} (Layer index ${frameIndex})`);
-
-      frameIndex--;
-      if (frameIndex < 0) {
-        frameIndex = maxCount - 1;
-      }
-
-      currentTimerId = setTimeout(next, delay);
-    }
-
-    next();
+    currentTimerId = setTimeout(nextFrame, delayMs);
   }
 
-  // Public API
-  return {
-    startPlayback() {
-      // Read delay from manual input or fps select
-      const manualDelayVal = parseFloat(document.getElementById("manualDelay").value);
-      let delay;
-      if (!isNaN(manualDelayVal) && manualDelayVal > 0) {
-        delay = manualDelayVal * 1000;
-      } else {
-        const fps = parseInt(document.getElementById("fpsSelect").value, 10);
-        delay = 1000 / (fps || 12);
-      }
+  nextFrame();
+}
 
-      playAllFolders(delay);
-    },
+function stopPlayback() {
+  shouldStop = true;
+  clearTimer();
+}
 
-    stopPlayback() {
-      shouldStop = true;
-      clearTimer();
-    }
-  };
-})();
+// Hook buttons to playback functions
+document.getElementById("renameBtn").onclick = () => {
+  // Get delay from manualDelay input or fpsSelect dropdown
+  let manualDelay = parseFloat(document.getElementById("manualDelay").value);
+  let delay;
+  if (!isNaN(manualDelay) && manualDelay > 0) {
+    delay = manualDelay * 1000;
+  } else {
+    let fps = parseInt(document.getElementById("fpsSelect").value, 10);
+    delay = 1000 / (fps || 12);
+  }
+  playAllFolders(delay);
+};
 
-// Hook up buttons using your style
-document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
-document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
+document.getElementById("stopBtn").onclick = () => {
+  stopPlayback();
+};
