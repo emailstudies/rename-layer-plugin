@@ -238,12 +238,13 @@ const Playback = (() => {
       let stop = parseInt(stopInput.value, 10);
 
       if (start > stop) {
-        alert("⚠️ Start frame cannot be greater than Stop frame. Start frame will be reset to 1.");
+        if (confirm(`⚠️ Start frame cannot be greater than Stop frame. Start frame will be reset to 1.`)) {
         startInput.value = 1;
         start = 1;
       } else {       
         return;
       }
+    }
 
       if (stop > count) {
         if (confirm(`⚠️ Stop frame (${stop}) exceeds max frames (${count}).\nSet Stop frame to max (${count})?`)) {
