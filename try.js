@@ -100,14 +100,10 @@ const Playback = (() => {
     }
   }
 
-  // Main playback loop with reverse, pingpong, reverse pingpong support
+  // Main playback loop with reverse, pingpong support
   function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
-
-    // Start frame and direction depend on modes:
-    // Base synced start is always from total - 1 for reverse logic
-    // We'll adjust accordingly for modes to keep sync consistent
 
     let i;
     let direction;
@@ -117,11 +113,12 @@ const Playback = (() => {
       // Simple loop mode
 
       if (reverse) {
-        // Reverse loop (your original logic)
+        // --- **Swapped logic here** ---
+        // Reverse loop: start at last frame and count down
         i = total - 1;
         direction = -1;
       } else {
-        // Forward loop
+        // Normal forward loop: start at first frame and count up
         i = 0;
         direction = 1;
       }
@@ -129,11 +126,11 @@ const Playback = (() => {
       // Pingpong modes
 
       if (reverse) {
-        // Reverse ping-pong: start at last frame, go backward first
+        // Reverse ping-pong: start at last frame, going backward first
         i = total - 1;
         direction = -1;
       } else {
-        // Normal ping-pong: start at first frame, go forward first
+        // Normal ping-pong: start at first frame, going forward first
         i = 0;
         direction = 1;
       }
@@ -149,7 +146,6 @@ const Playback = (() => {
       showOnlyFrame(i);
 
       if (pingpong) {
-        // Ping-pong behavior: bounce at ends
         if (goingForward) {
           i += direction;
           if (i >= total || i < 0) {
@@ -164,7 +160,6 @@ const Playback = (() => {
           }
         }
       } else {
-        // Looping behavior
         i += direction;
         if (i >= total) i = 0;
         if (i < 0) i = total - 1;
