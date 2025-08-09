@@ -1,29 +1,7 @@
-// Playback module with clean reset + echo logs
+// Playback module (reset after full max loop, no async/await)
 const Playback = (() => {
   let shouldStop = false;
   let currentTimerId = null;
-
-  function waitForEcho(prefix) {
-    return new Promise((resolve) => {
-      function handler(event) {
-        if (typeof event.data === "string" && event.data.startsWith(prefix)) {
-          window.removeEventListener("message", handler);
-          console.log(`📢 Echo received: ${event.data}`);
-          resolve(event.data);
-        }
-      }
-      window.addEventListener("message", handler);
-    });
-  }
-
-  function sleep(ms) {
-    return new Promise((resolve) => {
-      currentTimerId = setTimeout(() => {
-        currentTimerId = null;
-        resolve();
-      }, ms);
-    });
-  }
 
   function clearTimer() {
     if (currentTimerId !== null) {
@@ -32,7 +10,8 @@ const Playback = (() => {
     }
   }
 
-  function showOnlyFrameAsync(index) {
+  // Show only the given frame index in all visible groups
+  function showOnlyFrame(index) {
     const script = `
       (function () {
         var doc = app.activeDocument;
@@ -47,90 +26,98 @@ const Playback = (() => {
             }
           }
         }
-        app.echoToOE("👁️ Frame index ${index} applied");
+        app.echoToOE("👁️ Reset or show index ${index}");
       })();
     `;
     parent.postMessage(script, "*");
-    return waitForEcho("👁️ Frame index");
   }
 
-  // NEW: reset all visible groups to layer 0 (top layer)
-  function resetAllVisibleGroupsToLayer0Async() {
+  // Reset all visible groups to Layer 1 (index n-1)
+  function resetAllVisibleToLayer1() {
     const script = `
       (function () {
         var doc = app.activeDocument;
         for (var i = 0; i < doc.layers.length; i++) {
           var group = doc.layers[i];
           if (group.typename === "LayerSet" && group.visible) {
+            var targetIndex = group.layers.length - 1;
             for (var j = 0; j < group.layers.length; j++) {
-              group.layers[j].visible = (j === 0);
+              group.layers[j].visible = (j === targetIndex);
             }
           }
         }
-        app.echoToOE("🔄 All visible groups reset to layer 0");
+        app.echoToOE("🔄 Reset all groups to Layer 1");
       })();
     `;
     parent.postMessage(script, "*");
-    return waitForEcho("🔄 All visible groups reset to layer 0");
   }
 
-  function getMaxFrameCountAsync() {
+  // Get max frame count across all visible groups (sync-ish)
+  function getMaxFrameCount() {
+    let maxCount = 0;
     const script = `
       (function () {
         var doc = app.activeDocument;
-        var maxCount = 0;
+        var counts = [];
         for (var i = 0; i < doc.layers.length; i++) {
           var group = doc.layers[i];
           if (group.typename === "LayerSet" && group.visible) {
-            if (group.layers.length > maxCount) maxCount = group.layers.length;
+            counts.push(group.layers.length);
           }
         }
-        app.echoToOE("✅ maxCount " + maxCount);
+        app.echoToOE("✅ maxCount " + Math.max.apply(null, counts));
       })();
     `;
     parent.postMessage(script, "*");
-    return new Promise((resolve) => {
-      function handler(event) {
-        if (typeof event.data === "string" && event.data.startsWith("✅ maxCount")) {
-          window.removeEventListener("message", handler);
-          console.log(`📢 Echo received: ${event.data}`);
-          const count = parseInt(event.data.split(" ")[2], 10);
-          resolve(isNaN(count) ? 0 : count);
-        }
-      }
-      window.addEventListener("message", handler);
-    });
+    // You can capture the echoed value in your own listener,
+    // but if you already know it beforehand, skip this.
+    return maxCount;
   }
 
-  async function cycleFrames(total, delay, reverse, pingpong) {
-    console.log(`▶️ Starting playback total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
-
+  function cycleFrames(total, delay, reverse, pingpong) {
     let i = reverse ? 0 : total - 1;
     let direction = reverse ? 1 : -1;
-    let loopFrames = 0;
+    let goingForward = true;
+    let frameCounter = 0;
 
     clearTimer();
     shouldStop = false;
 
-    while (!shouldStop) {
-      await showOnlyFrameAsync(i);
-
-      loopFrames++;
-      if (loopFrames >= total) {
-        loopFrames = 0;
-        await resetAllVisibleGroupsToLayer0Async(); // call our clean reset function
-        i = reverse ? 0 : total - 1;
-        direction = reverse ? 1 : -1;
-        if (shouldStop) break;
-        await sleep(delay);
-        continue;
+    function next() {
+      if (shouldStop) {
+        clearTimer();
+        return;
       }
 
+      // Show frame
+      showOnlyFrame(i);
+      frameCounter++;
+
+      // If we've reached the total frames, reset and start over
+      if (frameCounter >= total) {
+        frameCounter = 0;
+        resetAllVisibleToLayer1();
+        i = reverse ? 0 : total - 1;
+        direction = reverse ? 1 : -1;
+        goingForward = true;
+        currentTimerId = setTimeout(next, delay);
+        return;
+      }
+
+      // Advance
       if (pingpong) {
-        i += direction;
-        if (i >= total || i < 0) {
-          direction *= -1;
-          i += direction * 2;
+        if (goingForward) {
+          i += direction;
+          if ((direction === 1 && i >= total) || (direction === -1 && i < 0)) {
+            goingForward = false;
+            i -= 2 * direction;
+          }
+        } else {
+          i -= direction;
+          if ((direction === 1 && i < 0) || (direction === -1 && i >= total)) {
+            goingForward = true;
+            i += 2 * direction;
+          }
         }
       } else {
         i += direction;
@@ -138,22 +125,21 @@ const Playback = (() => {
         if (i < 0) i = total - 1;
       }
 
-      if (shouldStop) break;
-      await sleep(delay);
+      currentTimerId = setTimeout(next, delay);
     }
 
-    clearTimer();
-    console.log("⏹️ Playback stopped");
+    next();
   }
 
-  async function startPlayback() {
+  function startPlayback() {
     shouldStop = false;
-    const frameCount = await getMaxFrameCountAsync();
+    const frameCount = getSelectedMaxCount(); // replace with your existing logic
     if (frameCount <= 0) {
-      console.log("❌ No frames found.");
+      console.log("❌ No frames to play");
       return;
     }
-    await resetAllVisibleGroupsToLayer0Async();
+
+    resetAllVisibleToLayer1(); // ensure all start in sync
     const delay = getSelectedDelay();
     const reverse = document.getElementById("reverseChk").checked;
     const pingpong = document.getElementById("pingpongChk").checked;
@@ -169,7 +155,8 @@ const Playback = (() => {
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
-  document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
-  document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
+  const playBtn = document.getElementById("renameBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  if (playBtn) playBtn.onclick = () => Playback.startPlayback();
+  if (stopBtn) stopBtn.onclick = () => Playback.stopPlayback();
 });
