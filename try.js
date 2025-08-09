@@ -1,95 +1,162 @@
-// Playback control variables
-let shouldStop = false;
-let currentTimerId = null;
+const Playback = (() => {
+  let shouldStop = false;
+  let currentTimerId = null;
+  let maxFrameCount = 0;
 
-// Clear running timer
-function clearTimer() {
-  if (currentTimerId) {
-    clearTimeout(currentTimerId);
-    currentTimerId = null;
+  // Send a script string to Photopea
+  function sendScript(script) {
+    parent.postMessage(script, "*");
   }
-}
 
-// Get visible folders (layer sets)
-function getVisibleFolders() {
-  const doc = app.activeDocument;
-  let folders = [];
-  for (let i = 0; i < doc.layers.length; i++) {
-    const layer = doc.layers[i];
-    if (layer.typename === "LayerSet" && layer.visible) {
-      folders.push(layer);
+  // Show synced frame across all visible folders using reverse indexing logic
+  function showOnlyFrame(frameIndex) {
+    const script = `
+      (function () {
+        var doc = app.activeDocument;
+        var folders = [];
+        // Collect visible folders
+        for (var i = 0; i < doc.layers.length; i++) {
+          var layer = doc.layers[i];
+          if (layer.typename === "LayerSet" && layer.visible) {
+            folders.push(layer);
+          } else {
+            // Hide all other top-level layers
+            layer.visible = false;
+          }
+        }
+
+        if (folders.length === 0) {
+          app.echoToOE("❌ No visible folders found.");
+          return;
+        }
+
+        // Find max frames count across folders
+        var maxFrames = 0;
+        for (var f = 0; f < folders.length; f++) {
+          if (folders[f].layers.length > maxFrames) {
+            maxFrames = folders[f].layers.length;
+          }
+        }
+
+        // Show/hide layers in each folder synced by reverse indexing
+        for (var f = 0; f < folders.length; f++) {
+          var folder = folders[f];
+          var totalFrames = folder.layers.length;
+          for (var l = 0; l < totalFrames; l++) {
+            folder.layers[l].visible = false;
+          }
+          var idx = totalFrames - 1 - (maxFrames - 1 - ${frameIndex});
+          if (idx >= 0 && idx < totalFrames) {
+            folder.layers[idx].visible = true;
+          }
+          // Ensure folder itself is visible
+          folder.visible = true;
+        }
+
+        app.echoToOE("👁️ Showing synced frame " + ${frameIndex} + " / max " + maxFrames);
+      })();
+    `;
+    sendScript(script);
+  }
+
+  // Request max frame count by asking Photopea
+  function getMaxFrameCount(callback) {
+    const script = `
+      (function () {
+        var doc = app.activeDocument;
+        var maxFrames = 0;
+        for (var i = 0; i < doc.layers.length; i++) {
+          var layer = doc.layers[i];
+          if (layer.typename === "LayerSet" && layer.visible) {
+            if (layer.layers.length > maxFrames) maxFrames = layer.layers.length;
+          }
+        }
+        app.echoToOE("✅ maxFrames " + maxFrames);
+      })();
+    `;
+
+    function handleMessage(event) {
+      if (typeof event.data === "string" && event.data.startsWith("✅ maxFrames")) {
+        const count = parseInt(event.data.split(" ")[2], 10);
+        if (!isNaN(count)) {
+          window.removeEventListener("message", handleMessage);
+          callback(count);
+        }
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    sendScript(script);
+  }
+
+  // Clear any scheduled timers
+  function clearTimer() {
+    if (currentTimerId !== null) {
+      clearTimeout(currentTimerId);
+      currentTimerId = null;
     }
   }
-  return folders;
-}
 
-// Get max frame count across folders
-function getMaxFrameCount(folders) {
-  if (folders.length === 0) return 0;
-  let counts = folders.map(f => f.layers.length);
-  return Math.max(...counts);
-}
+  // Main playback loop
+  function cycleFrames(total, delay) {
+    clearTimer();
+    shouldStop = false;
 
-// Show only one frame in a folder (reverse indexing)
-function showOnlyFrameInFolder(folder, globalFrameIndex, maxFrameCount) {
-  const totalFrames = folder.layers.length;
-  let frameIndex = totalFrames - 1 - (maxFrameCount - 1 - globalFrameIndex);
-  for (let i = 0; i < totalFrames; i++) {
-    folder.layers[i].visible = (i === frameIndex);
-  }
-}
+    let i = total - 1; // start at last frame (reverse playback sync logic)
 
-// Playback loop for all folders
-function playAllFolders(delayMs) {
-  const folders = getVisibleFolders();
-  if (folders.length === 0) {
-    alert("No visible folders found to play.");
-    return;
-  }
+    function next() {
+      if (shouldStop) {
+        clearTimer();
+        app.echoToOE && app.echoToOE("🛑 Playback stopped.");
+        return;
+      }
 
-  const maxCount = getMaxFrameCount(folders);
-  let globalFrameIndex = maxCount - 1;
-  shouldStop = false;
-  clearTimer();
+      showOnlyFrame(i);
 
-  function nextFrame() {
-    if (shouldStop) {
-      clearTimer();
-      return;
+      i--;
+      if (i < 0) i = total - 1;
+
+      currentTimerId = setTimeout(next, delay);
     }
 
-    folders.forEach(folder => {
-      showOnlyFrameInFolder(folder, globalFrameIndex, maxCount);
+    next();
+  }
+
+  function startPlayback() {
+    shouldStop = false;
+
+    getMaxFrameCount((count) => {
+      if (count <= 0) {
+        console.log("❌ No frames found in visible folders.");
+        return;
+      }
+      maxFrameCount = count;
+
+      // Get delay from UI
+      let manualDelay = parseFloat(document.getElementById("manualDelay").value);
+      let delay;
+      if (!isNaN(manualDelay) && manualDelay > 0) {
+        delay = manualDelay * 1000;
+      } else {
+        let fps = parseInt(document.getElementById("fpsSelect").value, 10);
+        delay = 1000 / (fps || 12);
+      }
+
+      cycleFrames(maxFrameCount, delay);
     });
-
-    globalFrameIndex--;
-    if (globalFrameIndex < 0) globalFrameIndex = maxCount - 1;
-
-    currentTimerId = setTimeout(nextFrame, delayMs);
   }
 
-  nextFrame();
-}
-
-function stopPlayback() {
-  shouldStop = true;
-  clearTimer();
-}
-
-// Hook buttons to playback functions
-document.getElementById("renameBtn").onclick = () => {
-  // Get delay from manualDelay input or fpsSelect dropdown
-  let manualDelay = parseFloat(document.getElementById("manualDelay").value);
-  let delay;
-  if (!isNaN(manualDelay) && manualDelay > 0) {
-    delay = manualDelay * 1000;
-  } else {
-    let fps = parseInt(document.getElementById("fpsSelect").value, 10);
-    delay = 1000 / (fps || 12);
+  function stopPlayback() {
+    shouldStop = true;
+    clearTimer();
   }
-  playAllFolders(delay);
-};
 
-document.getElementById("stopBtn").onclick = () => {
-  stopPlayback();
-};
+  return {
+    startPlayback,
+    stopPlayback,
+  };
+})();
+
+// Hook up your buttons
+document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
+document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
