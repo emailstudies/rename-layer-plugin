@@ -238,6 +238,19 @@ const Playback = (() => {
       let stop = parseInt(stopInput.value, 10);
 
       if (start > stop) {
+        alert("⚠️ Start frame cannot be greater than Stop frame. Start frame will be reset to 1.");
+        startInput.value = 1;
+        start = 1;
+      }
+
+      if (stop > count) {
+        alert(`⚠️ Stop frame (${stop}) exceeds max frames (${count}). Stop frame will be reset to max (${count}).`);
+        stopInput.value = count;
+        stop = count;
+      }
+
+   /* 
+      if (start > stop) {
         if (confirm(`⚠️ Start frame cannot be greater than Stop frame. Start frame will be reset to 1.`)) {
         startInput.value = 1;
         start = 1;
@@ -255,6 +268,7 @@ const Playback = (() => {
           return;
         }
       }
+      */
 
       const delay = getSelectedDelay();
       const reverse = document.getElementById("reverseChk").checked;
