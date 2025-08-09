@@ -237,8 +237,15 @@ const Playback = (() => {
       let start = parseInt(startInput.value, 10);
       let stop = parseInt(stopInput.value, 10);
 
+      // Validate start frame
       if (start > stop) {
         alert("⚠️ Start frame cannot be greater than Stop frame.");
+        return;
+      }
+
+      // Validate stop frame
+      if (stop > count) {
+        alert(`⚠️ Stop frame cannot be greater than the total frames (${count}).`);
         return;
       }
 
