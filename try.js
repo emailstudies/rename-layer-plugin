@@ -8,6 +8,70 @@ const Playback = (() => {
     parent.postMessage(script, "*");
   }
 
+/* this includes bg and folder with exactly one layer */
+function showOnlyFrame(frameIndex) {
+  const script = `
+    (function () {
+      var doc = app.activeDocument;
+      var folders = [];
+      var bgLayer = null;
+
+      // Find root background layer and visible folders
+      for (var i = 0; i < doc.layers.length; i++) {
+        var layer = doc.layers[i];
+        if (layer.name.toLowerCase() === "background") {
+          bgLayer = layer;
+          bgLayer.visible = true; // Always keep background visible
+        } else if (layer.typename === "LayerSet" && layer.visible) {
+          folders.push(layer);
+        } else if (layer.typename !== "LayerSet") {
+          // Leave other root non-folder layers as-is (do not hide)
+        }
+      }
+
+      if (folders.length === 0) {
+        app.echoToOE("❌ No visible folders found.");
+        return;
+      }
+
+      // Find max frames count across folders
+      var maxFrames = 0;
+      for (var f = 0; f < folders.length; f++) {
+        if (folders[f].layers.length > maxFrames) {
+          maxFrames = folders[f].layers.length;
+        }
+      }
+
+      // Show/hide layers in each folder synced by reverse indexing
+      for (var f = 0; f < folders.length; f++) {
+        var folder = folders[f];
+        var totalFrames = folder.layers.length;
+
+        if (totalFrames === 1) {
+          // If folder has exactly one layer, keep it visible
+          folder.layers[0].visible = true;
+        } else {
+          // Otherwise, hide all layers first
+          for (var l = 0; l < totalFrames; l++) {
+            folder.layers[l].visible = false;
+          }
+          var idx = totalFrames - 1 - (maxFrames - 1 - ${frameIndex});
+          if (idx >= 0 && idx < totalFrames) {
+            folder.layers[idx].visible = true;
+          }
+        }
+        folder.visible = true;
+      }
+
+      app.echoToOE("👁️ Showing synced frame " + ${frameIndex} + " / max " + maxFrames);
+    })();
+  `;
+  sendScript(script);
+}
+
+
+
+  /* this was only bg - did not include the folder with exactly 1 layer
   // Show synced frame across all visible folders using reverse indexing logic
   function showOnlyFrame(frameIndex) {
     const script = `
@@ -61,6 +125,7 @@ const Playback = (() => {
     `;
     sendScript(script);
   }
+  */
 
   // Request max frame count by asking Photopea
   function getMaxFrameCount(callback) {
