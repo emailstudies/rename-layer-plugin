@@ -1,3 +1,4 @@
+/*
 // Playback module for anim_preview frames, ready for external call
 
 const Playback = (() => {
@@ -236,3 +237,4 @@ document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
 document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
 
 document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
+*/
