@@ -231,15 +231,22 @@ const Playback = (() => {
       stopInput.min = 1;
       stopInput.max = count;
 
-      if (!startInput.value) startInput.value = 1;
-
       let start = parseInt(startInput.value, 10);
-
       let stop = parseInt(stopInput.value, 10);
-      if (stop > count || isNaN(stop)) {
-        alert(`⚠️ Stop frame cannot be greater than the max frame count (${count}). It has been reset.`);
+
+      // Defaults if empty or invalid
+      if (isNaN(start) || start < 1) start = 1;
+      if (isNaN(stop) || stop < 1) stop = count;
+
+      // Confirm if stop > max frames
+      if (stop > count) {
+        const proceed = confirm(`⚠️ Stop frame (${stop}) exceeds max frames (${count}).\nPress OK to set Stop frame to max (${count}), or Cancel to abort playback.`);
+        if (!proceed) {
+          console.log("Playback aborted by user due to invalid Stop frame.");
+          return; // Stop playback entirely
+        }
         stop = count;
-        stopInput.value = stop;
+        stopInput.value = count;
       }
 
       if (start > stop) {
