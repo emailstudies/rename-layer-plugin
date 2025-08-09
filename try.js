@@ -100,30 +100,31 @@ const Playback = (() => {
     }
   }
 
-  // Main playback loop with reverse, pingpong support
+  // Main playback loop with correct start and direction for normal/reverse and pingpong
   function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
 
+    // Normal playback starts at max-1 and goes backward
+    // Reverse playback starts at 0 and goes forward
     let i, direction, goingForward = true;
 
-    // Set starting frame and direction based on reverse checkbox
     if (!pingpong) {
       if (reverse) {
-        i = total - 1;
-        direction = -1;
-      } else {
         i = 0;
         direction = 1;
+      } else {
+        i = total - 1;
+        direction = -1;
       }
     } else {
-      // Pingpong starts same as normal direction
+      // Pingpong starts similarly, direction changes handled in next()
       if (reverse) {
-        i = total - 1;
-        direction = -1;
-      } else {
         i = 0;
         direction = 1;
+      } else {
+        i = total - 1;
+        direction = -1;
       }
     }
 
@@ -162,7 +163,6 @@ const Playback = (() => {
     next();
   }
 
-  // Start playback, read settings from UI
   function startPlayback() {
     shouldStop = false;
 
@@ -173,7 +173,7 @@ const Playback = (() => {
       }
       maxFrameCount = count;
 
-      // Get delay from UI inputs
+      // Get delay from UI controls
       let manualDelay = parseFloat(document.getElementById("manualDelay").value);
       let delay;
       if (!isNaN(manualDelay) && manualDelay > 0) {
@@ -190,7 +190,6 @@ const Playback = (() => {
     });
   }
 
-  // Stop playback
   function stopPlayback() {
     shouldStop = true;
     clearTimer();
