@@ -161,7 +161,57 @@ const Playback = (() => {
     next();
   }
 
-  // Start playback - uses helpers.js delay getters
+  // Extended cycleFramesRange to support frame range playback with correct syncing
+  function cycleFramesRange(start, stop, delay, reverse, pingpong, frameCount) {
+    // Convert 1-based frame inputs to 0-based indexes respecting reverse order
+    let startIndex = frameCount - start;
+    let stopIndex = frameCount - stop;
+
+    if (startIndex < stopIndex) [startIndex, stopIndex] = [stopIndex, startIndex];
+
+    clearTimer();
+    shouldStop = false;
+
+    let i = reverse ? stopIndex : startIndex;
+    let direction = reverse ? 1 : -1;
+    let goingForward = true;
+
+    function next() {
+      if (shouldStop) {
+        clearTimer();
+        app.echoToOE && app.echoToOE("🛑 Playback stopped.");
+        return;
+      }
+
+      showOnlyFrame(i);
+
+      if (pingpong) {
+        if (goingForward) {
+          i += direction;
+          if ((direction === 1 && i > startIndex) || (direction === -1 && i < stopIndex)) {
+            goingForward = false;
+            i -= 2 * direction;
+          }
+        } else {
+          i -= direction;
+          if ((direction === 1 && i < stopIndex) || (direction === -1 && i > startIndex)) {
+            goingForward = true;
+            i += 2 * direction;
+          }
+        }
+      } else {
+        i += direction;
+        if (direction === -1 && i < stopIndex) i = startIndex;
+        if (direction === 1 && i > startIndex) i = stopIndex;
+      }
+
+      currentTimerId = setTimeout(next, delay);
+    }
+
+    next();
+  }
+
+  // Start playback with dynamic range defaults set on inputs
   function startPlayback() {
     shouldStop = false;
 
@@ -172,12 +222,35 @@ const Playback = (() => {
       }
       maxFrameCount = count;
 
-      const delay = getSelectedDelay();
+      // Set min/max and default values dynamically for frame range inputs
+      const startInput = document.getElementById("startFrameInput");
+      const stopInput = document.getElementById("stopFrameInput");
 
+      startInput.min = 1;
+      startInput.max = count;
+      stopInput.min = 1;
+      stopInput.max = count;
+
+      if (!startInput.value) startInput.value = 1;
+      if (!stopInput.value) stopInput.value = count;
+
+      let start = parseInt(startInput.value, 10);
+      let stop = parseInt(stopInput.value, 10);
+
+      if (start > stop) {
+        alert("⚠️ Start frame cannot be greater than Stop frame.");
+        return;
+      }
+
+      const delay = getSelectedDelay();
       const reverse = document.getElementById("reverseChk").checked;
       const pingpong = document.getElementById("pingpongChk").checked;
 
-      cycleFrames(maxFrameCount, delay, reverse, pingpong);
+      if (start === 1 && stop === count) {
+        cycleFrames(count, delay, reverse, pingpong);
+      } else {
+        cycleFramesRange(start, stop, delay, reverse, pingpong, count);
+      }
     });
   }
 
