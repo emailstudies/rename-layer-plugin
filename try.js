@@ -3,7 +3,7 @@ const Playback = (() => {
   let shouldStop = false;
   let currentTimerId = null;
 
-  function showOnlyFrame(index) {
+  function showOnlyFrame(index, maxCount) {
     const script = `
       (function () {
         var doc = app.activeDocument;
@@ -15,14 +15,13 @@ const Playback = (() => {
             for (var j = 0; j < group.layers.length; j++) {
               group.layers[j].visible = false;
             }
-            // Show the target layer if it exists
-            if (${index} >= 0 && ${index} < group.layers.length) {
+            // Only show if index exists in this group
+            if (${index} < group.layers.length) {
               group.layers[${index}].visible = true;
             }
-            // If the index is out of range, show nothing for this group
           }
         }
-        app.echoToOE("👁️ Showing frame index ${index} for all groups");
+        app.echoToOE("👁️ Showing frame index ${index} of ${maxCount}");
       })();
     `;
     parent.postMessage(script, "*");
@@ -65,12 +64,11 @@ const Playback = (() => {
     }
   }
 
-  function cycleFrames(total, delay, reverse, pingpong) {
-    console.log(`▶️ cycleFrames playing total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
+  function cycleFrames(maxCount, delay, reverse, pingpong) {
+    console.log(`▶️ cycleFrames total=${maxCount}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-    // Restored original reverse behavior
-    let i = reverse ? 0 : total - 1;
-    let direction = reverse ? 1 : -1;
+    let i = reverse ? maxCount - 1 : 0;
+    let direction = reverse ? -1 : 1;
     let goingForward = true;
 
     clearTimer();
@@ -83,27 +81,27 @@ const Playback = (() => {
         return;
       }
 
-      showOnlyFrame(i);
+      showOnlyFrame(i, maxCount);
       console.log(`▶️ Showing frame index: ${i}`);
 
       if (pingpong) {
         if (goingForward) {
           i += direction;
-          if ((direction === 1 && i >= total) || (direction === -1 && i < 0)) {
+          if (i >= maxCount || i < 0) {
             goingForward = false;
-            i -= 2 * direction;
+            i -= direction * 2;
           }
         } else {
           i -= direction;
-          if ((direction === 1 && i < 0) || (direction === -1 && i >= total)) {
+          if (i < 0 || i >= maxCount) {
             goingForward = true;
-            i += 2 * direction;
+            i += direction * 2;
           }
         }
       } else {
         i += direction;
-        if (i < 0) i = total - 1;
-        if (i >= total) i = 0;
+        if (i >= maxCount) i = 0; // reset everyone together
+        if (i < 0) i = maxCount - 1; // reset for reverse
       }
 
       currentTimerId = setTimeout(next, delay);
