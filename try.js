@@ -100,26 +100,26 @@ const Playback = (() => {
     }
   }
 
-  // Main playback loop with reverse, pingpong support
+  // Main playback loop with correct reverse + pingpong support and synced start
   function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
 
     let i, direction, goingForward = true;
 
-    // Initialize frame index and direction respecting reverse & pingpong
+    // Logic for starting index and direction that respects syncing across folders
     if (!pingpong) {
       if (reverse) {
-        i = total - 1;
-        direction = -1;
+        i = 0;
+        direction = 1;
       } else {
-        i = total - 1;  // start at max -1 for normal as well per your sync logic
+        i = total - 1;
         direction = -1;
       }
     } else {
       if (reverse) {
-        i = total - 1;
-        direction = -1;
+        i = 0;
+        direction = 1;
       } else {
         i = total - 1;
         direction = -1;
@@ -161,6 +161,7 @@ const Playback = (() => {
     next();
   }
 
+  // Start playback - uses helpers.js delay getters
   function startPlayback() {
     shouldStop = false;
 
@@ -171,7 +172,7 @@ const Playback = (() => {
       }
       maxFrameCount = count;
 
-      const delay = getSelectedDelay();  // from helpers.js - manual delay or fps select with default 12fps
+      const delay = getSelectedDelay();
 
       const reverse = document.getElementById("reverseChk").checked;
       const pingpong = document.getElementById("pingpongChk").checked;
@@ -191,7 +192,9 @@ const Playback = (() => {
   };
 })();
 
-// Hook up your buttons
+// Hook up buttons to module
 document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
 document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
+
+// Update fps select disable state if manual delay input changes
 document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
