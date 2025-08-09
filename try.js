@@ -3,7 +3,8 @@ const Playback = (() => {
   let shouldStop = false;
   let currentTimerId = null;
 
-  function showOnlyFrame(index, maxCount) {
+  // Show specific frame index for all visible groups
+  function showOnlyFrame(index) {
     const script = `
       (function () {
         var doc = app.activeDocument;
@@ -11,22 +12,45 @@ const Playback = (() => {
         for (var i = 0; i < doc.layers.length; i++) {
           var group = doc.layers[i];
           if (group.typename === "LayerSet" && group.visible) {
-            // Hide all layers in this group
+            // Hide all layers
             for (var j = 0; j < group.layers.length; j++) {
               group.layers[j].visible = false;
             }
-            // Only show if index exists in this group
-            if (${index} < group.layers.length) {
+            // Show target layer if in range
+            if (${index} >= 0 && ${index} < group.layers.length) {
               group.layers[${index}].visible = true;
             }
           }
         }
-        app.echoToOE("👁️ Showing frame index ${index} of ${maxCount}");
+        app.echoToOE("👁️ Showing frame index ${index}");
       })();
     `;
     parent.postMessage(script, "*");
   }
 
+  // Reset all visible groups to Layer 1 (index = n-1)
+  function resetAllToLayer1() {
+    const script = `
+      (function () {
+        var doc = app.activeDocument;
+        for (var i = 0; i < doc.layers.length; i++) {
+          var group = doc.layers[i];
+          if (group.typename === "LayerSet" && group.visible) {
+            if (group.layers.length > 0) {
+              var targetIndex = group.layers.length - 1; // Layer 1 in your terms
+              for (var j = 0; j < group.layers.length; j++) {
+                group.layers[j].visible = (j === targetIndex);
+              }
+            }
+          }
+        }
+        app.echoToOE("🔄 Reset all groups to Layer 1");
+      })();
+    `;
+    parent.postMessage(script, "*");
+  }
+
+  // Get maximum frame count among visible groups
   function getMaxFrameCount(callback) {
     const script = `
       (function () {
@@ -47,7 +71,7 @@ const Playback = (() => {
       if (typeof event.data === "string" && event.data.startsWith("✅ maxCount")) {
         const count = parseInt(event.data.split(" ")[2], 10);
         if (!isNaN(count)) {
-          console.log("🧮 Detected max frame count across groups:", count);
+          console.log("🧮 Max frame count across groups:", count);
           window.removeEventListener("message", handleCount);
           callback(count);
         }
@@ -57,6 +81,7 @@ const Playback = (() => {
     parent.postMessage(script, "*");
   }
 
+  // Stop timer
   function clearTimer() {
     if (currentTimerId !== null) {
       clearTimeout(currentTimerId);
@@ -64,11 +89,14 @@ const Playback = (() => {
     }
   }
 
-  function cycleFrames(maxCount, delay, reverse, pingpong) {
-    console.log(`▶️ cycleFrames total=${maxCount}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
+  // Playback loop
+  function cycleFrames(total, delay, reverse, pingpong) {
+    console.log(`▶️ Playing total=${total}, delay=${delay}ms, reverse=${reverse}, pingpong=${pingpong}`);
 
-    let i = reverse ? maxCount - 1 : 0;
-    let direction = reverse ? -1 : 1;
+    // Starting index so Layer 1 (n-1) shows first
+    let i = reverse ? 0 : total - 1;
+    let direction = reverse ? 1 : -1;
+    let loopCount = 0; // Count frames to detect full loop
     let goingForward = true;
 
     clearTimer();
@@ -81,27 +109,33 @@ const Playback = (() => {
         return;
       }
 
-      showOnlyFrame(i, maxCount);
+      showOnlyFrame(i);
       console.log(`▶️ Showing frame index: ${i}`);
+
+      loopCount++;
+      if (loopCount >= total) {
+        resetAllToLayer1();
+        loopCount = 0;
+      }
 
       if (pingpong) {
         if (goingForward) {
           i += direction;
-          if (i >= maxCount || i < 0) {
+          if (i >= total || i < 0) {
             goingForward = false;
             i -= direction * 2;
           }
         } else {
           i -= direction;
-          if (i < 0 || i >= maxCount) {
+          if (i < 0 || i >= total) {
             goingForward = true;
             i += direction * 2;
           }
         }
       } else {
         i += direction;
-        if (i >= maxCount) i = 0; // reset everyone together
-        if (i < 0) i = maxCount - 1; // reset for reverse
+        if (i >= total) i = 0;
+        if (i < 0) i = total - 1;
       }
 
       currentTimerId = setTimeout(next, delay);
@@ -115,7 +149,7 @@ const Playback = (() => {
 
     getMaxFrameCount((frameCount) => {
       if (frameCount <= 0) {
-        console.log("❌ No frames found in visible groups.");
+        console.log("❌ No frames found.");
         return;
       }
 
