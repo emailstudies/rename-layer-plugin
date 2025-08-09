@@ -3,12 +3,10 @@ const Playback = (() => {
   let currentTimerId = null;
   let maxFrameCount = 0;
 
-  // Send a script string to Photopea
   function sendScript(script) {
     parent.postMessage(script, "*");
   }
 
-  // Show synced frame across all visible folders using reverse indexing logic
   function showOnlyFrame(frameIndex) {
     const script = `
       (function () {
@@ -16,16 +14,13 @@ const Playback = (() => {
         var folders = [];
         var bgLayer = null;
 
-        // Find root background layer and visible folders
         for (var i = 0; i < doc.layers.length; i++) {
           var layer = doc.layers[i];
           if (layer.name.toLowerCase() === "background") {
             bgLayer = layer;
-            bgLayer.visible = true; // Always keep background visible
+            bgLayer.visible = true;
           } else if (layer.typename === "LayerSet" && layer.visible) {
             folders.push(layer);
-          } else if (layer.typename !== "LayerSet") {
-            // Leave other root non-folder layers as-is (do not hide)
           }
         }
 
@@ -34,7 +29,6 @@ const Playback = (() => {
           return;
         }
 
-        // Find max frames count across folders
         var maxFrames = 0;
         for (var f = 0; f < folders.length; f++) {
           if (folders[f].layers.length > maxFrames) {
@@ -42,7 +36,6 @@ const Playback = (() => {
           }
         }
 
-        // Show/hide layers in each folder synced by reverse indexing
         for (var f = 0; f < folders.length; f++) {
           var folder = folders[f];
           var totalFrames = folder.layers.length;
@@ -62,7 +55,6 @@ const Playback = (() => {
     sendScript(script);
   }
 
-  // Request max frame count by asking Photopea
   function getMaxFrameCount(callback) {
     const script = `
       (function () {
@@ -92,7 +84,6 @@ const Playback = (() => {
     sendScript(script);
   }
 
-  // Clear any scheduled timers
   function clearTimer() {
     if (currentTimerId !== null) {
       clearTimeout(currentTimerId);
@@ -100,12 +91,15 @@ const Playback = (() => {
     }
   }
 
-  // Main playback loop
-  function cycleFrames(total, delay) {
+  // Extended playback supporting reverse & pingpong modes
+  function cycleFrames(total, delay, reverse, pingpong) {
     clearTimer();
     shouldStop = false;
 
-    let i = total - 1; // start at last frame (reverse playback sync logic)
+    // i = current frame index, direction = 1 or -1 step
+    let i = reverse ? total - 1 : 0;
+    let direction = reverse ? -1 : 1;
+    let goingForward = true; // for pingpong mode
 
     function next() {
       if (shouldStop) {
@@ -116,8 +110,28 @@ const Playback = (() => {
 
       showOnlyFrame(i);
 
-      i--;
-      if (i < 0) i = total - 1;
+      if (pingpong) {
+        if (goingForward) {
+          i += direction;
+          // If out of bounds, flip direction
+          if (i >= total || i < 0) {
+            goingForward = false;
+            i -= 2 * direction;
+          }
+        } else {
+          i -= direction;
+          // When flipping back, reset direction again
+          if (i < 0 || i >= total) {
+            goingForward = true;
+            i += 2 * direction;
+          }
+        }
+      } else {
+        // Normal looping
+        i += direction;
+        if (i >= total) i = 0;
+        if (i < 0) i = total - 1;
+      }
 
       currentTimerId = setTimeout(next, delay);
     }
@@ -145,7 +159,10 @@ const Playback = (() => {
         delay = 1000 / (fps || 12);
       }
 
-      cycleFrames(maxFrameCount, delay);
+      const reverse = document.getElementById("reverseChk").checked;
+      const pingpong = document.getElementById("pingpongChk").checked;
+
+      cycleFrames(maxFrameCount, delay, reverse, pingpong);
     });
   }
 
@@ -163,3 +180,5 @@ const Playback = (() => {
 // Hook up your buttons
 document.getElementById("renameBtn").onclick = () => Playback.startPlayback();
 document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
+
+document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
