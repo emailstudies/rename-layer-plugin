@@ -105,32 +105,21 @@ const Playback = (() => {
     clearTimer();
     shouldStop = false;
 
-    let i;
-    let direction;
-    let goingForward = true;
+    let i, direction, goingForward = true;
 
     if (!pingpong) {
-      // Simple loop mode
-
       if (reverse) {
-        // --- **Swapped logic here** ---
-        // Reverse loop: start at last frame and count down
         i = total - 1;
         direction = -1;
       } else {
-        // Normal forward loop: start at first frame and count up
         i = 0;
         direction = 1;
       }
     } else {
-      // Pingpong modes
-
       if (reverse) {
-        // Reverse ping-pong: start at last frame, going backward first
         i = total - 1;
         direction = -1;
       } else {
-        // Normal ping-pong: start at first frame, going forward first
         i = 0;
         direction = 1;
       }
