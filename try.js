@@ -237,6 +237,13 @@ const Playback = (() => {
       let start = parseInt(startInput.value, 10);
       let stop = parseInt(stopInput.value, 10);
 
+      // Check and fix start frame if less than 1
+      if (start < 1) {
+        alert("⚠️ Start frame cannot be less than 1. Resetting to 1.");
+        startInput.value = 1;
+        start = 1;
+      }
+
       if (start > stop) {
         alert("⚠️ Start frame cannot be greater than Stop frame.");
         return;
@@ -247,8 +254,7 @@ const Playback = (() => {
           stopInput.value = count;
           stop = count;
         } else {
-          // User declined, cancel playback
-          return;
+          return; // user canceled
         }
       }
 
@@ -281,14 +287,3 @@ document.getElementById("stopBtn").onclick = () => Playback.stopPlayback();
 
 // Update fps select disable state if manual delay input changes
 document.getElementById("manualDelay").addEventListener("input", updateDelayInputState);
-
-// Auto-restart playback on reverse or pingpong checkbox change
-["reverseChk", "pingpongChk"].forEach(id => {
-  const checkbox = document.getElementById(id);
-  if (checkbox) {
-    checkbox.addEventListener("change", () => {
-      Playback.stopPlayback();
-      Playback.startPlayback();
-    });
-  }
-});
