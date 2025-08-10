@@ -45,14 +45,19 @@ button{
     <option>30</option>
     <option>60</option>
   </select> 
+  <br>
   or Per frame hold (sec): <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" style="width: 60px;" />
-  <br><br>
+  <br>
+  <br>
   Start Frame <input type="number" id="startFrameInput" style="width:60px;" placeholder="Start Frame" min="1" />
+  <br>
   End Frame <input type="number" id="stopFrameInput" style="width:60px;" placeholder="End Frame" min="1" />
+  <br>
   <br>
   <label><input type="checkbox" id="reverseChk" /> Reverse</label>
   <label><input type="checkbox" id="pingpongChk" /> Ping-Pong</label>
-  
+  <br>
+  <br>
   <br>
   <button id="renameBtn" style="margin-top:4px;">Play</button>
   <button id="stopBtn" style="margin-top:4px;">Pause</button>
@@ -60,7 +65,10 @@ button{
   <hr style="margin:6px 0;">
 
   <!-- Export -->
+  <h3 style="margin:4px 0;">Playback</h3>
+  <h6>Export at selected FPS or Delay from Playback. Folders must start with anim_</h6>
   <button id="previewAllBtn">Export</button>
+  <hr style="margin:6px 0;">
 
 </div>
 
