@@ -1,117 +1,172 @@
+<!-- proper layout -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<style>
-.container {
-    width: 600px;
-    font-family: sans-serif;
-}
-.section {
-    border: 1px solid #474747;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-.section h3 {
-    margin-top: 0;
-}
-input[type="text"], input[type="number"] {
-    height: 22px;
-}
-.slider-container {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.slider-container label {
-    color: #ccc; /* lighter for legibility */
-}
-.slider-container input[type="range"] {
-    width: 120px; /* shorter slider length */
-}
-.playback-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 5px;
-}
-.export-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-}
-button {
-    background: none; /* Photopea default */
-    border: 1px solid #474747;
-    padding: 4px 8px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #fff;
+      margin: 20px;
+    }
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .section {
+      border: 1px solid #474747;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .section h3 {
+      margin-top: 0;
+      font-size: 1.1em;
+      border-bottom: 1px solid #474747;
+      padding-bottom: 4px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    button {
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    input[type="number"], input[type="text"], select {
+      padding: 4px;
+    }
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- Add Animation -->
-    <div class="section">
-        <h3>1. Add Animation</h3>
-        <input type="text" id="anim" value="walkCycle">
-        <button>Create Animation Folder</button>
-    </div>
+<div class="control-panel">
 
-    <!-- Update Layer Numbers -->
-    <div class="section">
-        <h3>2. Update Layer Numbers</h3>
-        <button>Update Layer Numbers</button>
+  <!-- 1. Add Animation -->
+  <div class="section">
+    <h3>1. Add Animation</h3>
+    <div class="controls">
+      <span>anim_</span>
+      <input type="text" id="animFolderInput" placeholder="walkCycle" />
+      <button id="createAnimBtn">Create Animation Folder</button>
     </div>
+  </div>
 
-    <!-- Onion Skin -->
-    <div class="section">
-        <h3>3. Onion Skin</h3>
-        <div class="slider-container">
-            <label>Before</label>
-            <input type="range" id="beforeRange" min="0" max="3" value="0">
-            <label>After</label>
-            <input type="range" id="afterRange" min="0" max="3" value="0">
-        </div>
-        <div style="margin-top: 5px;">
-            <button>Apply Onion Skin</button>
-            <button>Reset Onion Skin</button>
-        </div>
+  <!-- 2. Update Layer Numbers -->
+  <div class="section">
+    <h3>2. Update Layer Numbers</h3>
+    <div class="controls">
+      <button id="updateLayerNumbersBtn">Update Layer Numbers</button>
     </div>
+  </div>
 
-    <!-- Playback -->
-    <div class="section">
-        <h3>4. Playback</h3>
-        <div>
-            FPS:
-            <select>
-                <option>12</option>
-                <option>24</option>
-            </select>
-            or Hold per frame (sec):
-            <input type="text" placeholder="e.g. 0.5">
+  <!-- 3. Onion Skin -->
+  <div class="section">
+    <h3>3. Onion Skin</h3>
+    <div class="slider-group">
+      <label for="beforeSteps">Before</label>
+      <div class="slider-container">
+        <input type="range" id="beforeSteps" min="0" max="3" value="1" style="accent-color: #686868;" />
+        <div class="slider-labels">
+          <span>0</span>
+          <span>3</span>
         </div>
-        <div style="margin-top: 5px;">
-            Start Frame: <input type="text" value="Start Frame">
-            Stop Frame: <input type="text" value="Stop Frame">
+      </div>
+      <div class="slider-container">
+        <input type="range" id="afterSteps" min="0" max="3" value="1" style="accent-color: #686868; direction: rtl;" />
+        <div class="slider-labels">
+          <span>3</span>
+          <span>0</span>
         </div>
-        <div class="playback-row">
-            <label><input type="checkbox"> Reverse</label>
-            <label><input type="checkbox"> Ping-Pong</label>
-        </div>
-        <div class="playback-row">
-            <button>Play</button>
-            <button>Pause</button>
-            <button>Reset</button>
-        </div>
-        <div class="export-row">
-            <button>Export All</button>
-            <button>Export Selected</button>
-        </div>
+      </div>
+      <label for="afterSteps">After</label>
     </div>
+    <div class="controls">
+      <button id="onionSkinBtn">Apply Onion Skin</button>
+      <button id="resetOnionSkinBtn">Reset Onion Skin</button>
+    </div>
+  </div>
+
+  <!-- 4. Playback -->
+  <div class="section">
+    <h3>4. Playback</h3>
+    <div class="controls">
+      <label for="fpsSelect">FPS:</label>
+      <select id="fpsSelect">
+        <option value="30">30</option>
+        <option value="24">24</option>
+        <option value="12" selected>12</option>
+        <option value="10">10</option>
+      </select>
+      <span>or</span>
+      <label for="manualDelay">Hold per frame (sec):</label>
+      <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" style="width: 60px;" />
+    </div>
+    <div class="controls">
+      <label for="startFrameInput">Start Frame:</label>
+      <input id="startFrameInput" type="number" placeholder="Start Frame" min="1" />
+      <label for="stopFrameInput">Stop Frame:</label>
+      <input id="stopFrameInput" type="number" placeholder="Stop Frame" min="1" />
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" id="reverseChk" /> Reverse</label>
+      <label><input type="checkbox" id="pingpongChk" /> Ping-Pong</label>
+    </div>
+    <div class="controls">
+      <button id="renameBtn">Play</button>
+      <button id="stopBtn">Pause</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div class="controls">
+      <button id="previewAllBtn">Export All</button>
+      <button id="previewSelectedBtn">Export Selected</button>
+    </div>
+  </div>
+
 </div>
+
+<!-- Plugin Scripts -->
+<script src="src/create_anim_folder.js"></script>
+<script src="src/update_layer_numbers.js"></script>
+<script src="src/helpers.js"></script>
+<script src="src/onion_skin.js"></script>
+<script src="src/onion_skin_reset.js"></script>
+<script src="src/playback.js"></script>
+<script src="src/before_merge_in_export.js"></script>
+<script src="src/anim_preview_create.js"></script>
+<script src="src/anim_preview_selected.js"></script>
+<script src="src/app.js"></script>
 
 </body>
 </html>
+
 
 
 <!--
