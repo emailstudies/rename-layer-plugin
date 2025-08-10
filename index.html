@@ -1,262 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  
-
-  <style>
-    /* Overall panel */
-    :root {
-      --gap: 10px;
-      --section-pad: 10px;
-      --border: 1px solid #bbb;
-      --input-width: 80px; /* width for manualDelay, start/stop inputs */
-    }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 13px;
-      color: #111;
-      background: transparent; /* do not add any background color */
-    }
-
-    .container {
-      max-width: 760px;
-      margin: 18px auto;
-      padding: 0 6px;
-    }
-
-    .section {
-      border: var(--border);
-      padding: var(--section-pad);
-      margin-bottom: 12px;
-      border-radius: 4px;
-      background: transparent; /* keep background clear (no color fill) */
-    }
-
-    .section h3 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      font-weight: 600;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #e6e6e6;
-    }
-
-    /* generic row that wraps */
-    .row {
-      display: flex;
-      gap: var(--gap);
-      align-items: center;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-
-    /* controls that should be centered on their own row */
-    .center-row {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      align-items: center;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    select {
-      padding: 4px 6px;
-      font-size: 13px;
-      border: 1px solid #cfcfcf;
-      border-radius: 3px;
-      line-height: 1;
-    }
-
-    /* Make the Hold per frame, Start Frame and Stop Frame inputs same width */
-    #manualDelay {
-      width: var(--input-width);
-    }
-    #startFrameInput, #stopFrameInput {
-      width: var(--input-width);
-    }
-
-    input[type="range"] {
-      /* allow the sliders to grow but keep them tidy */
-      width: 180px;
-      height: 6px;
-    }
-
-    /* small helper for the slider labels row under each slider */
-    .slider-column {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .slider-minmax {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      font-size: 11px;
-      color: #555;
-    }
-
-    button {
-      padding: 6px 10px;
-      border: 1px solid #bdbdbd;
-      background: transparent; /* no colored backgrounds */
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    /* a little vertical spacing when we want an isolated block (export buttons under playback) */
-    .spaced {
-      margin-top: 14px;
-    }
-
-    /* keep checkboxes & their labels compact */
-    .checkbox-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-    }
-
-    /* responsive: shrink the input widths a bit on very narrow panels */
-    @media (max-width: 420px) {
-      :root { --input-width: 68px; }
-      input[type="range"] { width: 140px; }
-    }
-  </style>
+<style>
+.container {
+    width: 600px;
+    font-family: sans-serif;
+}
+.section {
+    border: 1px solid #474747;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+.section h3 {
+    margin-top: 0;
+}
+input[type="text"], input[type="number"] {
+    height: 22px;
+}
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.slider-container label {
+    color: #ccc; /* lighter for legibility */
+}
+.slider-container input[type="range"] {
+    width: 120px; /* shorter slider length */
+}
+.playback-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+.export-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+button {
+    background: none; /* Photopea default */
+    border: 1px solid #474747;
+    padding: 4px 8px;
+}
+</style>
 </head>
 <body>
-  <div class="container">
 
-    <!-- 1. Add Animation -->
+<div class="container">
+    <!-- Add Animation -->
     <div class="section">
-      <h3>1. Add Animation</h3>
-
-      <div class="row" style="align-items:center;">
-        <label for="animFolderInput">anim_</label>
-        <input type="text" id="animFolderInput" placeholder="walkCycle" />
-        <button id="createAnimBtn">Create Animation Folder</button>
-      </div>
-
+        <h3>1. Add Animation</h3>
+        <input type="text" id="anim" value="walkCycle">
+        <button>Create Animation Folder</button>
     </div>
 
-    <!-- 2. Update Layer Numbers -->
+    <!-- Update Layer Numbers -->
     <div class="section">
-      <h3>2. Update Layer Numbers</h3>
-      <div class="row">
-        <div style="max-width:720px;">
-          <h4 style="margin:0 0 6px 0; font-size:12px; font-weight:500;">This will rename and number your layers inside anim folders.</h4>
-          <button id="updateLayerNumbersBtn">Update Layer Numbers</button>
-        </div>
-      </div>
+        <h3>2. Update Layer Numbers</h3>
+        <button>Update Layer Numbers</button>
     </div>
 
-    <!-- 3. Onion Skin -->
+    <!-- Onion Skin -->
     <div class="section">
-      <h3>3. Onion Skin</h3>
-
-      <!-- slider row: Before --- slider --- After (keeps original min/max/value attributes) -->
-      <div class="row" style="align-items:center;">
-        <label for="beforeSteps">Before</label>
-
-        <div class="slider-column" style="min-width:200px;">
-          <input type="range" id="beforeSteps" min="0" max="3" value="1" style="accent-color: #686868;" />
-          <div class="slider-minmax"><span>0</span><span>3</span></div>
+        <h3>3. Onion Skin</h3>
+        <div class="slider-container">
+            <label>Before</label>
+            <input type="range" id="beforeRange" min="0" max="3" value="0">
+            <label>After</label>
+            <input type="range" id="afterRange" min="0" max="3" value="0">
         </div>
-
-        <div class="slider-column" style="min-width:200px;">
-          <input type="range" id="afterSteps" min="0" max="3" value="1" style="accent-color: #686868; direction: rtl;" />
-          <div class="slider-minmax"><span>3</span><span>0</span></div>
+        <div style="margin-top: 5px;">
+            <button>Apply Onion Skin</button>
+            <button>Reset Onion Skin</button>
         </div>
-
-        <label for="afterSteps">After</label>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <button id="onionSkinBtn">Apply Onion Skin</button>
-        <button id="resetOnionSkinBtn">Reset Onion Skin</button>
-      </div>
     </div>
 
-    <!-- 4. Playback -->
+    <!-- Playback -->
     <div class="section">
-      <h3>4. Playback</h3>
+        <h3>4. Playback</h3>
+        <div>
+            FPS:
+            <select>
+                <option>12</option>
+                <option>24</option>
+            </select>
+            or Hold per frame (sec):
+            <input type="text" placeholder="e.g. 0.5">
+        </div>
+        <div style="margin-top: 5px;">
+            Start Frame: <input type="text" value="Start Frame">
+            Stop Frame: <input type="text" value="Stop Frame">
+        </div>
+        <div class="playback-row">
+            <label><input type="checkbox"> Reverse</label>
+            <label><input type="checkbox"> Ping-Pong</label>
+        </div>
+        <div class="playback-row">
+            <button>Play</button>
+            <button>Pause</button>
+            <button>Reset</button>
+        </div>
+        <div class="export-row">
+            <button>Export All</button>
+            <button>Export Selected</button>
+        </div>
+    </div>
+</div>
 
-      <!-- FPS + Manual Delay -->
-      <div class="row">
-        <label for="fpsSelect">FPS:</label>
-        <select id="fpsSelect">
-          <option value="30">30</option>
-          <option value="24">24</option>
-          <option value="12" selected>12</option>
-          <option value="10">10</option>
-        </select>
-
-        <span>or</span>
-
-        <label for="manualDelay">Hold per frame (sec):</label>
-        <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" />
-      </div>
-
-      <!-- Start/Stop frame inputs (same width as manualDelay) -->
-      <div class="row" style="margin-top:8px;">
-        <label for="startFrameInput">Start Frame:</label>
-        <input id="startFrameInput" type="number" placeholder="Start Frame" min="1" />
-
-        <label for="stopFrameInput">Stop Frame:</label>
-        <input id="stopFrameInput" type="number" placeholder="Stop Frame" min="1" />
-      </div>
-
-      <!-- Reverse / Ping-Pong centered on one line -->
-      <div class="center-row" style="margin-top:12px;">
-        <label class="checkbox-label"><input type="checkbox" id="reverseChk" /> Reverse</label>
-        <label class="checkbox-label"><input type="checkbox" id="pingpongChk" /> Ping-Pong</label>
-      </div>
-
-      <!-- Play / Pause / Reset centered on their own line -->
-      <div class="center-row" style="margin-top:8px;">
-        <button id="renameBtn">Play</button>
-        <button id="stopBtn">Pause</button>
-        <button id="resetBtn">Reset</button>
-      </div>
-
-      <!-- Export buttons are part of Playback but with more spacing below -->
-      <div class="center-row spaced">
-        <button id="previewAllBtn">Export All</button>
-        <button id="previewSelectedBtn">Export Selected</button>
-      </div>
-
-    </div><!-- end playback section -->
-
-  </div><!-- end container -->
-
-
-  <!-- Plugin Scripts (kept in your original order so IDs & behaviour stay the same) -->
-  <script src="src/create_anim_folder.js"></script>
-  <script src="src/update_layer_numbers.js"></script>
-  <script src="src/helpers.js"></script>
-  <script src="src/onion_skin.js"></script>
-  <script src="src/onion_skin_reset.js"></script>
-  <script src="src/playback.js"></script>
-  <script src="src/before_merge_in_export.js"></script>
-  <script src="src/anim_preview_create.js"></script>
-  <script src="src/anim_preview_selected.js"></script>
-
-  <script src="src/app.js"></script>
 </body>
 </html>
+
 
 <!--
 <!DOCTYPE html>
