@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Animation Panel</title>
 </head>
-<body style="margin:0; font-size:12px; line-height:1.3; font-family:sans-serif;">
+<body style="margin:0; font-size:14px; line-height:1.3; font-family:sans-serif;">
 <style>
 button{
   margin-top: 6px;
@@ -14,15 +14,16 @@ button{
 <div class="control-panel" style="padding:8px;">
 
   <!-- Create -->
-  <h3 style="margin:4px 0;">Create</h3>
-   <span>anim_</span>
-  <input type="text"  id="animFolderInput" placeholder="optional" style="width:60px;" style="margin-bottom:4px;" />
+  <h3 style="margin:4px 0;">Create Animation Folder</h3>
+  <span>anim_</span>
+  <input type="text"  id="animFolderInput" placeholder="optional" style="width:80px;" style="margin-bottom:4px;" />
   <br>
-  <button id="createAnimBtn" style="margin-bottom:4px;">Create Animation Folder</button>
+  <button id="createAnimBtn" style="margin-bottom:4px;">Create Folder</button>
   <hr style="margin:6px 0;">
 
   <!-- Frame Info -->
   <h3 style="margin:4px 0;">Frame Info</h3>
+  <h5>Update Layer Number and if layer is empty or filled.</h5>
   <button id="updateLayerNumbersBtn" style="margin-bottom:4px;">Update Layer Numbers</button>
   <hr style="margin:6px 0;">
 
@@ -49,9 +50,9 @@ button{
   or Per frame hold (sec): <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" style="width: 60px;" />
   <br>
   <br>
-  Start Frame <input type="number" id="startFrameInput" style="width:60px;" placeholder="Start Frame" min="1" />
+  Start Frame <input type="number" id="startFrameInput" style="width:80px;" placeholder="Start Frame" min="1" />
   <br>
-  End Frame <input type="number" id="stopFrameInput" style="width:60px;" placeholder="End Frame" min="1" />
+  End Frame <input type="number" id="stopFrameInput" style="width:80px;" placeholder="End Frame" min="1" />
   <br>
   <br>
   <label><input type="checkbox" id="reverseChk" /> Reverse</label>
@@ -62,11 +63,11 @@ button{
   <button id="renameBtn" style="margin-top:4px;">Play</button>
   <button id="stopBtn" style="margin-top:4px;">Pause</button>
   <button id="resetBtn" style="margin-top:4px;">Reset</button>
-  <hr style="margin:6px 0;">
+  <hr style="margin:10px 0;">
 
   <!-- Export -->
   <h3 style="margin:4px 0;">Playback</h3>
-  <h6>Export at selected FPS or Delay from Playback. Folders must start with anim_</h6>
+  <h5>Export at selected FPS or Delay from Playback. Folders must start with anim_</h5>
   <button id="previewAllBtn">Export</button>
   <hr style="margin:6px 0;">
 
