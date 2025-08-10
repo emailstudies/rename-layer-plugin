@@ -11,9 +11,9 @@
   <!-- Create -->
   <h3 style="margin:4px 0;">Create</h3>
    <span>anim_</span>
-  <input type="text"  id="animFolderInput" placeholder="walkCycle" style="margin-bottom:4px; />
+  <input type="text"  id="animFolderInput" placeholder="optional" style="width:60px;" style="margin-bottom:4px;" />
   <br>
-  <button id="createFolderBtn" style="margin-bottom:4px;">Create Animation Folder</button>
+  <button id="createAnimBtn" style="margin-bottom:4px;">Create Animation Folder</button>
   <hr style="margin:6px 0;">
 
   <!-- Frame Info -->
@@ -23,13 +23,9 @@
 
   <!-- Onion Skin -->
   <h3 style="margin:4px 0;">Onion Skin</h3>
-  Before 
-  <input type="range" id="beforeSteps" min="0" max="3" value= "1" style="accent-color: #686868;" />
-  <span>0</span>
-  <span>3</span>        
-  <input type="range" id="afterSteps" min="0" max="3" value="1" style="accent-color: #686868; direction: rtl;" /> After
-  <span>3</span>
-  <span>0</span>
+  Before (0 - 3)
+  <input type="range" id="beforeSteps" min="0" max="3" value= "1" style="accent-color: #686868;" />   
+  <input type="range" id="afterSteps" min="0" max="3" value="1" style="accent-color: #686868; direction: rtl;" /> After (0 - 3)
   <br>
   <button id="applyOnionSkinBtn" style="margin-top:4px;">Apply Onion Skin</button>
   <button id="resetOnionSkinBtn" style="margin-top:4px;">Reset Onion Skin</button>
@@ -44,10 +40,10 @@
     <option>30</option>
     <option>60</option>
   </select> 
-  or Per frame hold (sec): <input type="number" id="frameHold" min="0" step="0.1" style="width:60px;">
+  or Per frame hold (sec): <input type="number" id="manualDelay" step="0.1" min="0" placeholder="e.g. 0.5" style="width: 60px;" />
   <br><br>
-  Start Frame <input type="number" id="startFrameInput" style="width:60px;">
-  End Frame <input type="number" id="stopFrameInput" style="width:60px;">
+  Start Frame <input type="number" id="startFrameInput" style="width:60px;" placeholder="Start Frame" min="1" />
+  End Frame <input type="number" id="stopFrameInput" style="width:60px;" placeholder="End Frame" min="1" />
   <br>
   <label><input type="checkbox" id="reverseChk" /> Reverse</label>
   <label><input type="checkbox" id="pingpongChk" /> Ping-Pong</label>
