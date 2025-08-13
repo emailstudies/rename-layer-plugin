@@ -110,3 +110,12 @@ function toggleOnionSkinMode() {
 
   window.parent.postMessage(script, "*");
 }
+
+  document.getElementById("onionSkinBtn").onclick = function () {
+    
+    
+      const before = parseInt(document.getElementById("beforeSteps").value, 10);
+      const after = parseInt(document.getElementById("afterSteps").value, 10);
+      toggleOnionSkinMode(before, after); // apply after reset
+   
+  };
