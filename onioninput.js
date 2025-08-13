@@ -111,11 +111,69 @@ function toggleOnionSkinMode() {
   window.parent.postMessage(script, "*");
 }
 
+// onionskinreset
+
+function resetOnionSkin() {
+  const script = `
+    (function () {
+      
+      var doc = app.activeDocument;
+      if (!doc) {
+        alert("No active document.");
+        return;
+      }
+
+      function isLayerSetLocked(layerSet) {
+      return layerSet.allLocked || layerSet.pixelsLocked || layerSet.positionLocked || layerSet.transparentPixelsLocked;
+      }
+
+      for (var i = 0; i < doc.layers.length; i++) {
+        var group = doc.layers[i];
+
+        // Only process unlocked LayerSets (folders)
+        if (group.typename === "LayerSet" && !isLayerSetLocked(group) && group.name !== "anim_preview") {
+          try {
+            group.visible = true;
+          } catch (e) {
+            alert("⚠️ Could not unhide folder: " + group.name);
+          }
+
+          var layers = group.layers;
+          var frameCount = layers.length;
+
+          for (var j = 0; j < frameCount; j++) {
+            var layer = layers[j];
+            if (layer.typename !== "Layer") continue;
+
+            try {
+              if (j === frameCount - 1) {
+                layer.visible = true;
+                layer.opacity = 100;
+              } else {
+                layer.visible = false;
+                layer.opacity = 100;
+              }
+            } catch (e) {
+              alert("⚠️ Failed to update layer: " + layer.name);
+            }
+          }
+        }
+      }
+
+      
+    })();
+  `;
+
+  window.parent.postMessage(script, "*");
+}
+
+// app.js
+
   document.getElementById("onionSkinBtn").onclick = function () {
-    
-    
+    resetOnionSkin(); // reset first
+    setTimeout(() => {
       const before = parseInt(document.getElementById("beforeSteps").value, 10);
       const after = parseInt(document.getElementById("afterSteps").value, 10);
       toggleOnionSkinMode(before, after); // apply after reset
-   
+    }, 10);
   };
