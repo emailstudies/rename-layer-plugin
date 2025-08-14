@@ -1,86 +1,78 @@
 function toggleOnionSkinMatchIndexMode() {
-  const beforeSteps = parseInt(document.getElementById("beforeSteps").value, 10);
-  const afterSteps = parseInt(document.getElementById("afterSteps").value, 10);
-  const userLayerNumber = parseInt(document.getElementById("onionSkinTextInput").value.trim(), 10);
+  var beforeSteps = parseInt(document.getElementById("beforeSteps").value, 10);
+  var afterSteps = parseInt(document.getElementById("afterSteps").value, 10);
+  var matchIndex = parseInt(document.getElementById("matchIndex").value, 10);
 
-  if (isNaN(userLayerNumber)) {
-    alert("Please enter a valid layer index.");
-    return; 
+  var opacityMap = {
+    1: 50,
+    2: 25,
+    3: 10
+  };
+
+  var doc = app.activeDocument;
+  if (!doc) {
+    alert("No active document open.");
+    return;
   }
 
-  console.log("🎯 Onion Skin Match Index:", userLayerNumber, "Before =", beforeSteps, "After =", afterSteps);
+  // Collect only selected top-level folders
+  var selectedFolders = [];
+  for (var i = 0; i < doc.layers.length; i++) {
+    var lyr = doc.layers[i];
+    if (lyr.typename === "LayerSet" && lyr.selected) {
+      selectedFolders.push(lyr);
+    }
+  }
 
-  const script = `
-    (function () {
-      var doc = app.activeDocument;
-      if (!doc) {
-        alert("No active document.");
-        return;
+  if (selectedFolders.length === 0) {
+    alert("Please select at least one folder.");
+    return;
+  }
+
+  // Hide all non-selected folders (set visible = false for the whole folder)
+  for (var i = 0; i < doc.layers.length; i++) {
+    var lyr = doc.layers[i];
+    if (lyr.typename === "LayerSet" && !lyr.selected) {
+      lyr.visible = false;
+    }
+  }
+
+  // Apply onion skin logic for each selected folder
+  for (var f = 0; f < selectedFolders.length; f++) {
+    var folder = selectedFolders[f];
+    var layers = folder.layers;
+
+    // First hide all layers in this folder
+    for (var i = 0; i < layers.length; i++) {
+      layers[i].visible = false;
+      layers[i].opacity = 100;
+    }
+
+    if (matchIndex < 0 || matchIndex >= layers.length) {
+      alert("Match index out of range in folder: " + folder.name);
+      continue;
+    }
+
+    // Set the exact match layer
+    layers[matchIndex].visible = true;
+    layers[matchIndex].opacity = 100;
+
+    // Before steps
+    for (var step = 1; step <= beforeSteps; step++) {
+      var idx = matchIndex - step;
+      if (idx >= 0) {
+        layers[idx].visible = true;
+        layers[idx].opacity = opacityMap[step] || 100;
       }
+    }
 
-      function isLayerSetLocked(layerSet) {
-        return layerSet.allLocked || layerSet.pixelsLocked || layerSet.positionLocked || layerSet.transparentPixelsLocked;
+    // After steps
+    for (var step = 1; step <= afterSteps; step++) {
+      var idx = matchIndex + step;
+      if (idx < layers.length) {
+        layers[idx].visible = true;
+        layers[idx].opacity = opacityMap[step] || 100;
       }
-
-      var beforeSteps = ${beforeSteps};
-      var afterSteps = ${afterSteps};
-      var targetIndex = ${userLayerNumber};
-      var opacityMap = { 1: 50, 2: 40, 3: 30 };
-
-      // Get selected folders only
-      var selectedFolders = [];
-      for (var i = 0; i < doc.layers.length; i++) {
-        var group = doc.layers[i];
-        if (group.typename === "LayerSet" && group.selected && !isLayerSetLocked(group)) {
-          selectedFolders.push(group);
-        }
-      }
-
-      if (selectedFolders.length === 0) {
-        alert("No folders selected.");
-        return;
-      }
-
-      for (var f = 0; f < selectedFolders.length; f++) {
-        var folder = selectedFolders[f];
-        folder.visible = true;
-
-        var layers = folder.layers;
-        var reverseIndex = layers.length - targetIndex; // match index from bottom if needed
-        if (reverseIndex < 0 || reverseIndex >= layers.length) continue;
-
-        for (var l = 0; l < layers.length; l++) {
-          var layer = layers[l];
-          if (layer.typename === "LayerSet" || layer.locked) continue;
-
-          var distance = l - reverseIndex;
-
-          if (l === reverseIndex) {
-            layer.visible = true;
-            layer.opacity = 100;
-          } else if (distance > 0 && distance <= beforeSteps) {
-            layer.visible = true;
-            layer.opacity = opacityMap[distance] || 0;
-          } else if (distance < 0 && Math.abs(distance) <= afterSteps) {
-            layer.visible = true;
-            layer.opacity = opacityMap[Math.abs(distance)] || 0;
-          } else {
-            layer.visible = false;
-            layer.opacity = 100;
-          }
-        }
-      }
-
-      alert("✅ Match Index Onion Skin applied.");
-    })();
-  `;
-
-  window.parent.postMessage(script, "*");
+    }
+  }
 }
-
-// ====== Click Binding ======
-document.addEventListener("DOMContentLoaded", function () {
-  document.getElementById("matchIndexBtn").onclick = function () {
-    toggleOnionSkinMatchIndexMode();
-  };
-});
