@@ -76,3 +76,9 @@ function toggleOnionSkinMatchIndexMode() {
     }
   }
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("matchIndexBtn").onclick = function () {
+    toggleOnionSkinMatchIndexMode();
+  };
+});
