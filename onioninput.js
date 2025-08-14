@@ -16,8 +16,8 @@ function toggleOnionSkinMatchIndexMode() {
       var doc = app.activeDocument;
       if (!doc) { alert("No active document."); return; }
 
-      function isLayerSetLocked(layerSet) {
-        return layerSet.allLocked || layerSet.pixelsLocked || layerSet.positionLocked || layerSet.transparentPixelsLocked;
+      function isLayerLocked(layer) {
+        return layer.allLocked || layer.pixelsLocked || layer.positionLocked || layer.transparentPixelsLocked;
       }
 
       var beforeSteps = ${beforeSteps};
@@ -29,7 +29,7 @@ function toggleOnionSkinMatchIndexMode() {
       var selectedFolderIndices = [];
       for (var i = 0; i < doc.layers.length; i++) {
         var item = doc.layers[i];
-        if (item.typename === "LayerSet" && !isLayerSetLocked(item)) {
+        if (item.typename === "LayerSet" && !isLayerLocked(item)) {
           var marked = !!item.selected;
           if (!marked) {
             for (var j = 0; j < item.layers.length; j++) {
@@ -46,10 +46,12 @@ function toggleOnionSkinMatchIndexMode() {
         return;
       }
 
-      // Hide all non-selected folders and all non-Background root layers
+      // Hide all non-selected folders and non-Background root layers (unless locked)
       for (var i = 0; i < doc.layers.length; i++) {
         var rootLayer = doc.layers[i];
         var isSelectedGroup = selectedFolderIndices.indexOf(i) !== -1;
+
+        if (isLayerLocked(rootLayer)) continue;
 
         if (rootLayer.typename === "LayerSet") {
           if (!isSelectedGroup) rootLayer.visible = false;
@@ -61,7 +63,7 @@ function toggleOnionSkinMatchIndexMode() {
       // Apply onion skin to each selected folder
       for (var g = 0; g < doc.layers.length; g++) {
         var group = doc.layers[g];
-        if (group.typename !== "LayerSet" || isLayerSetLocked(group)) continue;
+        if (group.typename !== "LayerSet" || isLayerLocked(group)) continue;
         var isSelectedGroup = selectedFolderIndices.indexOf(g) !== -1;
         if (!isSelectedGroup) continue;
 
@@ -69,13 +71,19 @@ function toggleOnionSkinMatchIndexMode() {
         var layers = group.layers;
         if (layers.length === 0) continue;
 
+        // Special case: only 1 layer inside → always visible
+        if (layers.length === 1) {
+          if (!isLayerLocked(layers[0])) layers[0].visible = true;
+          continue;
+        }
+
         // Reverse index: Layer 1 = bottom
         var reverseIndex = layers.length - userLayerNumber; // 0-based top-down index
         if (reverseIndex < 0 || reverseIndex >= layers.length) {
           // Out of range: hide all
           for (var l = 0; l < layers.length; l++) {
             var lyr = layers[l];
-            if (lyr.typename === "LayerSet" || lyr.locked) continue;
+            if (isLayerLocked(lyr)) continue;
             lyr.visible = false;
             lyr.opacity = 100;
           }
@@ -84,7 +92,7 @@ function toggleOnionSkinMatchIndexMode() {
 
         for (var l = 0; l < layers.length; l++) {
           var layer = layers[l];
-          if (layer.typename === "LayerSet" || layer.locked) continue;
+          if (isLayerLocked(layer)) continue;
 
           if (l === reverseIndex) {
             layer.visible = true;
