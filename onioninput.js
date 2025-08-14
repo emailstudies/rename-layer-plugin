@@ -27,8 +27,16 @@ function toggleOnionSkinMatchIndexMode() {
 
       // Gather selected root folders (or folders with a selected child layer)
       var selectedFolderIndices = [];
+      var rootArtLayerSelected = false;
+
       for (var i = 0; i < doc.layers.length; i++) {
         var item = doc.layers[i];
+
+        // 🚫 If root ArtLayer is selected, flag it
+        if (item.typename === "ArtLayer" && item.selected) {
+          rootArtLayerSelected = true;
+        }
+
         if (item.typename === "LayerSet" && !isLayerLocked(item)) {
           var marked = !!item.selected;
           if (!marked) {
@@ -39,6 +47,12 @@ function toggleOnionSkinMatchIndexMode() {
           }
           if (marked) selectedFolderIndices.push(i);
         }
+      }
+
+      // 🚫 If a root-level ArtLayer is selected, alert and stop
+      if (rootArtLayerSelected && selectedFolderIndices.length === 0) {
+        alert("Please select a folder (LayerSet), not a single layer at the root level.");
+        return;
       }
 
       if (selectedFolderIndices.length === 0) {
