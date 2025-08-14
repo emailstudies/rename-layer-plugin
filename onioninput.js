@@ -5,7 +5,7 @@ function toggleOnionSkinMatchIndexMode() {
 
   if (isNaN(userLayerNumber)) {
     alert("Please enter a valid layer index.");
-    return;
+    return; 
   }
 
   console.log("🎯 Onion Skin Match Index:", userLayerNumber, "Before =", beforeSteps, "After =", afterSteps);
