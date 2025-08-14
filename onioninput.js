@@ -79,9 +79,8 @@ function toggleOnionSkinMatchIndexMode() {
 }
 
 // ====== Click Binding ======
-document.getElementById("matchIndexBtn").onclick = function () {
-//  resetOnionSkin(); // reset first
-//  setTimeout(() => {
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("matchIndexBtn").onclick = function () {
     toggleOnionSkinMatchIndexMode();
-//  }, 10);
-};
+  };
+});
