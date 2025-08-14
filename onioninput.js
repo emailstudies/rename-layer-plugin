@@ -100,6 +100,7 @@ function toggleOnionSkinMode() {
 
           if (!set) {
             layer.visible = false;
+            layer.opacity = 100;
           }
         }
       }
@@ -170,10 +171,16 @@ function resetOnionSkin() {
 // app.js
 
   document.getElementById("onionSkinBtn").onclick = function () {
-    resetOnionSkin(); // reset first
-    setTimeout(() => {
+   // resetOnionSkin(); // reset first
+   //setTimeout(() => {
       const before = parseInt(document.getElementById("beforeSteps").value, 10);
       const after = parseInt(document.getElementById("afterSteps").value, 10);
       toggleOnionSkinMode(before, after); // apply after reset
-    }, 10);
+   // }, 10);
   };
+
+ document.getElementById("resetOnionSkinBtn").onclick = function () {
+    resetOnionSkin();        // then do the reset
+    alert("✅ Onion skin reset: Folders visible. In each folder - All layers opactity = 100, only Layer 1 visibe. ");
+  }; 
+
