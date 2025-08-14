@@ -22,36 +22,37 @@ function toggleOnionSkinMatchIndexMode() {
 
       var beforeSteps = ${beforeSteps};
       var afterSteps  = ${afterSteps};
-      var userLayerNumber = ${userLayerNumber}; // 1-based from bottom
+      var userLayerNumber = ${userLayerNumber};
       var opacityMap = { 1: 50, 2: 40, 3: 30 };
 
-      // Gather selected root folders (or folders with a selected child layer)
       var selectedFolderIndices = [];
-      var rootArtLayerSelected = false;
+      var rootLayerSelected = false;
 
+      // Scan root layers
       for (var i = 0; i < doc.layers.length; i++) {
         var item = doc.layers[i];
 
-        // 🚫 If root ArtLayer is selected, flag it
-        if (item.typename === "ArtLayer" && item.selected) {
-          rootArtLayerSelected = true;
+        // 🚫 If a root-level normal layer is selected → stop later
+        if (item.typename !== "LayerSet" && item.selected) {
+          rootLayerSelected = true;
         }
 
+        // ✅ Collect selected folders
         if (item.typename === "LayerSet" && !isLayerLocked(item)) {
           var marked = !!item.selected;
           if (!marked) {
             for (var j = 0; j < item.layers.length; j++) {
               var child = item.layers[j];
-              if (child.typename !== "LayerSet" && child.selected) { marked = true; break; }
+              if (child.selected) { marked = true; break; }
             }
           }
           if (marked) selectedFolderIndices.push(i);
         }
       }
 
-      // 🚫 If a root-level ArtLayer is selected, alert and stop
-      if (rootArtLayerSelected && selectedFolderIndices.length === 0) {
-        alert("Please select a folder (LayerSet), not a single layer at the root level.");
+      // 🚫 If only a normal root layer is selected
+      if (rootLayerSelected && selectedFolderIndices.length === 0) {
+        alert("Please select a folder (LayerSet), not a single root-level layer.");
         return;
       }
 
@@ -60,16 +61,15 @@ function toggleOnionSkinMatchIndexMode() {
         return;
       }
 
-      // Hide all non-selected folders and non-Background root layers (unless locked)
+      // Hide all non-selected root folders and root layers (unless locked)
       for (var i = 0; i < doc.layers.length; i++) {
         var rootLayer = doc.layers[i];
         var isSelectedGroup = selectedFolderIndices.indexOf(i) !== -1;
-
         if (isLayerLocked(rootLayer)) continue;
 
         if (rootLayer.typename === "LayerSet") {
           if (!isSelectedGroup) rootLayer.visible = false;
-        } else if (rootLayer.typename === "ArtLayer" && rootLayer.name.toLowerCase() !== "background") {
+        } else {
           rootLayer.visible = false;
         }
       }
@@ -78,8 +78,7 @@ function toggleOnionSkinMatchIndexMode() {
       for (var g = 0; g < doc.layers.length; g++) {
         var group = doc.layers[g];
         if (group.typename !== "LayerSet" || isLayerLocked(group)) continue;
-        var isSelectedGroup = selectedFolderIndices.indexOf(g) !== -1;
-        if (!isSelectedGroup) continue;
+        if (selectedFolderIndices.indexOf(g) === -1) continue;
 
         group.visible = true;
         var layers = group.layers;
@@ -92,14 +91,13 @@ function toggleOnionSkinMatchIndexMode() {
         }
 
         // Reverse index: Layer 1 = bottom
-        var reverseIndex = layers.length - userLayerNumber; // 0-based top-down index
+        var reverseIndex = layers.length - userLayerNumber;
         if (reverseIndex < 0 || reverseIndex >= layers.length) {
-          // Out of range: hide all
           for (var l = 0; l < layers.length; l++) {
-            var lyr = layers[l];
-            if (isLayerLocked(lyr)) continue;
-            lyr.visible = false;
-            lyr.opacity = 100;
+            if (!isLayerLocked(layers[l])) {
+              layers[l].visible = false;
+              layers[l].opacity = 100;
+            }
           }
           continue;
         }
@@ -127,7 +125,7 @@ function toggleOnionSkinMatchIndexMode() {
         }
       }
 
-      alert("✅ Onion Skin (Match Index) applied to all selected folders.");
+      alert("✅ Onion Skin (Match Index) applied.");
     })();
   `;
 
